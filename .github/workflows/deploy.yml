@@ -1,0 +1,87 @@
+# Deploy to AWS (docs/deploy.md). Runs on main only when the AWS role is configured
+# (repository variable AWS_DEPLOY_ROLE_ARN); otherwise every job is skipped.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC → AWS, no long-lived keys
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_DIR: infra/terraform/envs/prod
+
+jobs:
+  deploy:
+    if: vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.0
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: >
+          terraform -chdir=$TF_DIR init -input=false
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="key=gowcredit/prod.tfstate"
+          -backend-config="region=$AWS_REGION"
+
+      - name: Create the ECR repository first (the image must exist before ECS rolls)
+        run: terraform -chdir=$TF_DIR apply -input=false -auto-approve -target=module.app.aws_ecr_repository.api -var image_tag=${{ github.sha }} -var smtp_url="$SMTP_URL"
+        env:
+          SMTP_URL: ${{ secrets.SMTP_URL }}
+
+      - name: Build and push the API image
+        run: |
+          REPO=$(terraform -chdir=$TF_DIR output -raw ecr_repository_url)
+          aws ecr get-login-password | docker login --username AWS --password-stdin "${REPO%%/*}"
+          docker build -f docker/Dockerfile --target api-runtime -t "$REPO:${{ github.sha }}" .
+          docker push "$REPO:${{ github.sha }}"
+
+      - name: Terraform apply (infrastructure + new task definitions)
+        run: terraform -chdir=$TF_DIR apply -input=false -auto-approve -var image_tag=${{ github.sha }} -var smtp_url="$SMTP_URL"
+        env:
+          SMTP_URL: ${{ secrets.SMTP_URL }}
+
+      - name: Run migrations (one-off ECS task)
+        run: |
+          out() { terraform -chdir=$TF_DIR output -raw "$1"; }
+          SUBNETS=$(terraform -chdir=$TF_DIR output -json private_subnet_ids | jq -r 'join(",")')
+          TASK=$(aws ecs run-task --cluster "$(out cluster_name)" --launch-type FARGATE \
+            --task-definition "$(out migrate_task_definition)" \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$(out app_security_group_id)]}" \
+            --query 'tasks[0].taskArn' --output text)
+          aws ecs wait tasks-stopped --cluster "$(out cluster_name)" --tasks "$TASK"
+          CODE=$(aws ecs describe-tasks --cluster "$(out cluster_name)" --tasks "$TASK" --query 'tasks[0].containers[0].exitCode' --output text)
+          test "$CODE" = "0"
+
+      - name: Wait for the API and worker to be stable
+        run: |
+          C=$(terraform -chdir=$TF_DIR output -raw cluster_name)
+          aws ecs wait services-stable --cluster "$C" --services \
+            "$(terraform -chdir=$TF_DIR output -raw api_service_name)" \
+            "$(terraform -chdir=$TF_DIR output -raw worker_service_name)"
+
+      - name: Publish the web app (S3 + CloudFront)
+        run: |
+          docker build -f docker/Dockerfile --target web-runtime -t web:${{ github.sha }} .
+          id=$(docker create web:${{ github.sha }}); docker cp "$id:/usr/share/nginx/html" ./web-dist; docker rm "$id"
+          aws s3 sync ./web-dist "s3://$(terraform -chdir=$TF_DIR output -raw web_bucket)" --delete
+          aws cloudfront create-invalidation --distribution-id "$(terraform -chdir=$TF_DIR output -raw web_distribution_id)" --paths "/*"
