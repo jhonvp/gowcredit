@@ -26,8 +26,8 @@ train-classifier: ## retrain the T2 line classifier from T0-validated documents 
 	$(RUN) pnpm --filter @gowcredit/api train-classifier
 test:          ## unit tests (no services needed)
 	$(RUN) pnpm test
-test-integration: ## API + real Postgres (gowcredit_test db) + Floci S3/SQS (test bucket/queue)
-	$(DC) up -d postgres floci
+test-integration: ## API + real Postgres (gowcredit_test db) + Floci S3/SQS (test bucket/queue) + Mailpit
+	$(DC) up -d postgres floci mailpit
 	$(DC) run --rm -e DATABASE_URL=postgres://gowcredit:gowcredit@postgres:5432/gowcredit_test -e S3_BUCKET=gowcredit-documents-test -e SQS_QUEUE_NAME=gowcredit-extract-test -e AWS_BOOTSTRAP=true -e LOG_LEVEL=warn -e LOG_PRETTY=false tools pnpm --filter @gowcredit/api test:integration
 test-e2e:      ## browser E2E with Playwright against the running stack (make up first)
 	$(DC) --profile test run --rm e2e

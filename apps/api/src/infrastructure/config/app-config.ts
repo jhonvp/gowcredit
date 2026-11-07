@@ -42,6 +42,13 @@ export class AppConfig {
       visibilityTimeout: this.config.get('SQS_VISIBILITY_TIMEOUT', { infer: true }),
     };
   }
+  get mail(): { smtpUrl: string; from: string; webBaseUrl: string } {
+    return {
+      smtpUrl: this.config.get('SMTP_URL', { infer: true }),
+      from: this.config.get('MAIL_FROM', { infer: true }),
+      webBaseUrl: this.config.get('WEB_BASE_URL', { infer: true }),
+    };
+  }
   get eligibility(): { asOf: string | null; satStatusMode: 'active' | 'unknown' } {
     return {
       asOf: this.config.get('ELIGIBILITY_AS_OF', { infer: true }) ?? null,

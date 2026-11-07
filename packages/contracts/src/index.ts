@@ -147,6 +147,8 @@ export const CaseViewSchema = z.object({
   updatedAt: z.string(),
   documents: z.array(DocumentViewSchema),
   decision: DecisionViewSchema.nullable(),
+  /** Rounds with the document owner (filled by the API; empty while none). */
+  clarifications: z.array(z.lazy(() => ClarificationViewSchema)),
 });
 export type CaseView = z.infer<typeof CaseViewSchema>;
 
@@ -188,3 +190,57 @@ export const CaseSummaryViewSchema = z.object({
   updatedAt: z.string(),
 });
 export type CaseSummaryView = z.infer<typeof CaseSummaryViewSchema>;
+
+// ---- Clarification loop (ADR 0008) ----
+export const QuestionTypeSchema = z.enum([
+  'confirm_value',
+  'provide_value',
+  'upload_document',
+  'explain_discrepancy',
+]);
+export type QuestionType = z.infer<typeof QuestionTypeSchema>;
+
+export const OwnerRequestViewSchema = z.object({
+  round: z.number().int(),
+  expiresAt: z.string().nullable(),
+  questions: z.array(
+    z.object({ code: MissingInfoCodeSchema, type: QuestionTypeSchema, text: z.string() }),
+  ),
+});
+export type OwnerRequestView = z.infer<typeof OwnerRequestViewSchema>;
+
+export const OwnerAnswersRequestSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        code: MissingInfoCodeSchema,
+        /** Date (YYYY-MM-DD) for INVOICE_DUE_DATE, boolean for confirmations. */
+        value: z.union([z.string().max(20), z.boolean()]).optional(),
+        /** Free text: explanations, or an answer the T5 agent normalizes. */
+        text: z.string().max(2000).optional(),
+      }),
+    )
+    .max(10),
+});
+export type OwnerAnswersRequest = z.infer<typeof OwnerAnswersRequestSchema>;
+
+export const OwnerAnswerResponseSchema = z.object({
+  status: CaseStatusSchema,
+  outcome: DecisionOutcomeSchema.nullable(),
+  pendingDocuments: z.boolean(),
+});
+export type OwnerAnswerResponse = z.infer<typeof OwnerAnswerResponseSchema>;
+
+export const ClarificationViewSchema = z.object({
+  round: z.number().int(),
+  status: z.enum(['open', 'answered', 'superseded', 'escalated']),
+  questions: z.array(
+    z.object({ code: MissingInfoCodeSchema, type: QuestionTypeSchema, text: z.string() }),
+  ),
+  answers: z.array(z.record(z.string(), z.unknown())).nullable(),
+  forAnalyst: z.array(z.object({ code: MissingInfoCodeSchema, text: z.string() })).nullable(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+  answeredAt: z.string().nullable(),
+});
+export type ClarificationView = z.infer<typeof ClarificationViewSchema>;

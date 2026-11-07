@@ -23,6 +23,10 @@ import {
   type CaseRepositoryPort,
 } from '../../application/ports/case-repository.port';
 import {
+  CLARIFICATION_REPOSITORY_PORT,
+  type ClarificationRepositoryPort,
+} from '../../application/ports/clarification.ports';
+import {
   CaseNotFoundError,
   MAX_DOCUMENT_BYTES,
   SubmitDocumentUseCase,
@@ -48,6 +52,7 @@ export class DocumentsController {
   constructor(
     private readonly submit: SubmitDocumentUseCase,
     @Inject(CASE_REPOSITORY_PORT) private readonly cases: CaseRepositoryPort,
+    @Inject(CLARIFICATION_REPOSITORY_PORT) private readonly requests: ClarificationRepositoryPort,
   ) {}
 
   /** Multipart: `file`, optional `ownerEmail` (who answers questions; defaults to the supplier). */
@@ -140,6 +145,6 @@ export class DocumentsController {
   ): Promise<CaseView> {
     const found = await this.cases.findCase(id);
     if (!found || !canReadCase(p, found)) throw new NotFoundException('case not found');
-    return toCaseView(found);
+    return toCaseView(found, await this.requests.listByCase(found.id));
   }
 }
