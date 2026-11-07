@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
+  Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Inject,
@@ -9,12 +11,13 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UnsupportedMediaTypeException,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { CaseView, SubmitDocumentResponse } from '@gowcredit/contracts';
+import type { CaseSummaryView, CaseView, SubmitDocumentResponse } from '@gowcredit/contracts';
 import {
   CASE_REPOSITORY_PORT,
   type CaseRepositoryPort,
@@ -25,6 +28,8 @@ import {
   SubmitDocumentUseCase,
   UnsupportedDocumentError,
 } from '../../application/use-cases/submit-document.use-case';
+import { canReadCase, type Principal, submittingSupplier } from '../../domain/auth/principal';
+import { CurrentPrincipal, Roles } from '../../infrastructure/auth/guards';
 import { toCaseView } from './case.presenter';
 
 /** The fields of a Multer in-memory upload this controller uses. */
@@ -34,7 +39,10 @@ interface MulterFile {
   buffer: Buffer;
 }
 
-/** Document intake and case status. Auth guards arrive with the auth PR (ADR 0005). */
+/**
+ * Document intake and case status (ADR 0005): suppliers (JWT) and integrations (X-API-Key) submit;
+ * analysts read every case; suppliers read their own. Another supplier's case answers 404.
+ */
 @Controller()
 export class DocumentsController {
   constructor(
@@ -42,29 +50,67 @@ export class DocumentsController {
     @Inject(CASE_REPOSITORY_PORT) private readonly cases: CaseRepositoryPort,
   ) {}
 
+  /** Multipart: `file`, optional `ownerEmail` (who answers questions; defaults to the supplier). */
   @Post('documents')
+  @Roles('supplier')
   @HttpCode(202)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
-  upload(@UploadedFile() file?: MulterFile): Promise<SubmitDocumentResponse> {
-    return this.receive(file);
+  upload(
+    @CurrentPrincipal() p: Principal,
+    @Body('ownerEmail') ownerEmail?: string,
+    @UploadedFile() file?: MulterFile,
+  ): Promise<SubmitDocumentResponse> {
+    return this.receive(p, file, { ownerEmail });
   }
 
   /** Adds a document to an existing case: a statement and an invoice are decided together. */
   @Post('cases/:id/documents')
+  @Roles('supplier')
   @HttpCode(202)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
   addToCase(
+    @CurrentPrincipal() p: Principal,
     @Param('id', new ParseUUIDPipe()) id: string,
     @UploadedFile() file?: MulterFile,
   ): Promise<SubmitDocumentResponse> {
-    return this.receive(file, id);
+    return this.receive(p, file, { caseId: id });
+  }
+
+  /** Most recent cases: all for analysts, own for suppliers and their keys. */
+  @Get('cases')
+  async list(
+    @CurrentPrincipal() p: Principal,
+    @Query('limit') limit?: string,
+  ): Promise<CaseSummaryView[]> {
+    const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    const analyst = p.kind === 'user' && p.role === 'analyst';
+    const rows = await this.cases.listCases({
+      supplierId: analyst
+        ? undefined
+        : (submittingSupplier(p) ?? '00000000-0000-0000-0000-000000000000'),
+      limit: n,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      outcome: r.outcome,
+      documentCount: r.documentCount,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+    }));
   }
 
   private async receive(
+    p: Principal,
     file: MulterFile | undefined,
-    caseId?: string,
+    opts: { caseId?: string; ownerEmail?: string },
   ): Promise<SubmitDocumentResponse> {
+    const supplierId = submittingSupplier(p);
+    if (!supplierId) throw new ForbiddenException('only suppliers can submit documents');
     if (!file) throw new BadRequestException('multipart field "file" is required');
+    const ownerEmail = opts.ownerEmail?.trim() || (p.kind === 'user' ? p.email : null);
+    if (ownerEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ownerEmail))
+      throw new BadRequestException('ownerEmail is not a valid email');
     try {
       const updated = await this.submit.execute(
         {
@@ -73,7 +119,7 @@ export class DocumentsController {
           bytes: file.buffer,
           sha256: createHash('sha256').update(file.buffer).digest('hex'),
         },
-        caseId,
+        { supplierId, ownerEmail, caseId: opts.caseId },
       );
       return {
         caseId: updated.id,
@@ -88,9 +134,12 @@ export class DocumentsController {
   }
 
   @Get('cases/:id')
-  async getCase(@Param('id', new ParseUUIDPipe()) id: string): Promise<CaseView> {
+  async getCase(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<CaseView> {
     const found = await this.cases.findCase(id);
-    if (!found) throw new NotFoundException('case not found');
+    if (!found || !canReadCase(p, found)) throw new NotFoundException('case not found');
     return toCaseView(found);
   }
 }

@@ -157,3 +157,34 @@ export const SubmitDocumentResponseSchema = z.object({
   status: CaseStatusSchema,
 });
 export type SubmitDocumentResponse = z.infer<typeof SubmitDocumentResponseSchema>;
+
+// ---- Auth (ADR 0005) ----
+export const RoleSchema = z.enum(['supplier', 'analyst']);
+export type Role = z.infer<typeof RoleSchema>;
+
+export const LoginRequestSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+
+export const MeSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string(),
+  name: z.string(),
+  role: RoleSchema,
+});
+export type Me = z.infer<typeof MeSchema>;
+
+export const LoginResponseSchema = z.object({ accessToken: z.string(), user: MeSchema });
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
+export const CaseSummaryViewSchema = z.object({
+  id: z.string().uuid(),
+  status: CaseStatusSchema,
+  outcome: DecisionOutcomeSchema.nullable(),
+  documentCount: z.number().int(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type CaseSummaryView = z.infer<typeof CaseSummaryViewSchema>;

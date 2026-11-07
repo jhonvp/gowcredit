@@ -13,6 +13,13 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // Auth (ADR 0005). In AWS the secret comes from Secrets Manager.
+  JWT_SECRET: z.string().min(32),
+  JWT_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(8 * 3600),
   // Documents and the extraction queue (ADR 0006). Floci locally, Terraform-managed in AWS.
   S3_BUCKET: z.string().default('gowcredit-documents-local'),
   SQS_QUEUE_NAME: z.string().default('gowcredit-extract-local'),

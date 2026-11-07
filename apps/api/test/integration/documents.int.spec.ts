@@ -10,6 +10,7 @@ import { LOGGER_PORT } from '../../src/application/ports/logger.port';
 import { ProcessDocumentUseCase } from '../../src/application/use-cases/process-document.use-case';
 import { AppModule } from '../../src/bootstrap/app.module';
 import { ExtractionWorker } from '../../src/interfaces/worker/extraction.worker';
+import { bearer, login } from './support/auth';
 import { tinyPdf } from './support/tiny-pdf';
 
 /**
@@ -20,6 +21,7 @@ import { tinyPdf } from './support/tiny-pdf';
 describe('documents intake (integration)', () => {
   let app: INestApplication;
   let worker: ExtractionWorker;
+  let auth: Record<string, string>;
 
   beforeAll(async () => {
     process.env.LLM_MODE = 'replay';
@@ -32,6 +34,7 @@ describe('documents intake (integration)', () => {
       app.get(ProcessDocumentUseCase),
       app.get(LOGGER_PORT),
     );
+    auth = bearer(await login(app, 'supplier@demo.mx'));
     // Messages left over from earlier runs point at a dropped database: they are skipped and acked.
     while ((await worker.drain()) > 0);
   });
@@ -47,17 +50,24 @@ describe('documents intake (integration)', () => {
     ]);
     const res = await request(app.getHttpServer())
       .post('/api/documents')
+      .set(auth)
       .attach('file', Buffer.from(pdf), { filename: 'demo.pdf', contentType: 'application/pdf' })
       .expect(202);
     expect(res.body).toMatchObject({ status: 'RECEIVED' });
     const { caseId } = res.body as { caseId: string };
 
-    const before = await request(app.getHttpServer()).get(`/api/cases/${caseId}`).expect(200);
+    const before = await request(app.getHttpServer())
+      .get(`/api/cases/${caseId}`)
+      .set(auth)
+      .expect(200);
     expect(before.body.documents[0].extraction).toBeNull();
 
     expect(await worker.drain()).toBeGreaterThanOrEqual(1);
 
-    const after = await request(app.getHttpServer()).get(`/api/cases/${caseId}`).expect(200);
+    const after = await request(app.getHttpServer())
+      .get(`/api/cases/${caseId}`)
+      .set(auth)
+      .expect(200);
     const doc = after.body.documents[0];
     // No transaction table → T0 fails rows-present; LLM tiers have no fixture → review.
     expect(after.body.status).toBe('AWAITING_OWNER');
@@ -95,11 +105,12 @@ describe('documents intake (integration)', () => {
     (
       await request(app.getHttpServer())
         .post(caseId ? `/api/cases/${caseId}/documents` : '/api/documents')
+        .set(auth)
         .attach('file', bytes, { filename: name, contentType: 'application/xml' })
         .expect(202)
     ).body as { caseId: string };
   const getCase = async (id: string) =>
-    (await request(app.getHttpServer()).get(`/api/cases/${id}`).expect(200)).body;
+    (await request(app.getHttpServer()).get(`/api/cases/${id}`).set(auth).expect(200)).body;
 
   it('decides a CFDI: an already-paid (PUE) invoice does not qualify', async () => {
     const { caseId } = await upload(cfdi('factura-pue-paid.xml'), 'pue.xml');
@@ -138,15 +149,18 @@ describe('documents intake (integration)', () => {
   it('rejects files that are not PDF or XML, and validates ids', async () => {
     await request(app.getHttpServer())
       .post('/api/documents')
+      .set(auth)
       .attach('file', Buffer.from('hello'), { filename: 'x.pdf', contentType: 'application/pdf' })
       .expect(415);
-    await request(app.getHttpServer()).post('/api/documents').expect(400);
-    await request(app.getHttpServer()).get('/api/cases/not-a-uuid').expect(400);
+    await request(app.getHttpServer()).post('/api/documents').set(auth).expect(400);
+    await request(app.getHttpServer()).get('/api/cases/not-a-uuid').set(auth).expect(400);
     await request(app.getHttpServer())
       .get('/api/cases/00000000-0000-4000-8000-000000000000')
+      .set(auth)
       .expect(404);
     await request(app.getHttpServer())
       .post('/api/cases/00000000-0000-4000-8000-000000000000/documents')
+      .set(auth)
       .attach('file', cfdi('factura-ppd-anchor.xml'), {
         filename: 'x.xml',
         contentType: 'application/xml',
