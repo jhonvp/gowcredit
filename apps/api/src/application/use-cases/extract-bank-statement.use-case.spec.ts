@@ -116,4 +116,34 @@ describe('ExtractBankStatementUseCase', () => {
     expect(out.resolvedBy).toBe('T0');
     expect(out.costUsd).toBe(0.01);
   });
+
+  it('mixes sections: keeps the earlier summary when only the later rows are right', async () => {
+    // T0: right summary, wrong rows. T3: right rows, broken summary (missing closing balance).
+    const t0 = tier('T0', 1500);
+    vi.mocked(t0.extract).mockResolvedValueOnce({
+      statement: { ...statement(1500), transactions: [] },
+      diagnostics: {},
+    });
+    const t3: StatementExtractorPort = {
+      tier: 'T3',
+      extract: vi.fn(async () => {
+        const s = statement(1500);
+        return {
+          statement: {
+            ...s,
+            summary: { ...s.summary, closingBalance: null },
+            provenance: { summary: 'T3' as const, transactions: 'T3' as const },
+          },
+          diagnostics: {},
+        };
+      }),
+    };
+    const out = await new ExtractBankStatementUseCase(text, [t0, t3], logger).execute(
+      new Uint8Array(),
+      { documentId: 'd1' },
+    );
+    expect(out.needsReview).toBe(false);
+    expect(out.resolvedBy).toBe('T3');
+    expect(out.statement.provenance).toEqual({ summary: 'T0', transactions: 'T3' });
+  });
 });
