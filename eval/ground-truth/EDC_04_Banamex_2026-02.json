@@ -1,0 +1,22 @@
+{
+  "file": "EDC_04_Banamex_2026-02.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Banamex",
+  "currency": "MXN",
+  "periodStart": "2026-02-01",
+  "periodEnd": "2026-02-28",
+  "openingBalance": 255014.07,
+  "closingBalance": 81070.94,
+  "totalCredits": 175349.83,
+  "totalDebits": 349292.96,
+  "transactionCount": 93,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "RESUMEN block: Saldo Anterior, (+) 8 Depósitos, (−) 85 Retiros, SALDO AL 28 DE FEBRERO.",
+    "arithmetic": "opening + credits − debits = closing (255,014.07 + 175,349.83 − 349,292.96 = 81,070.94)",
+    "transactionCount": "Count printed by the bank (8 + 85)."
+  },
+  "knownAnomalies": [],
+  "notes": []
+}

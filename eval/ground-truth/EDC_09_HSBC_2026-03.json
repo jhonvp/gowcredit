@@ -1,0 +1,22 @@
+{
+  "file": "EDC_09_HSBC_2026-03.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "HSBC",
+  "currency": "MXN",
+  "periodStart": "2026-03-01",
+  "periodEnd": "2026-03-31",
+  "openingBalance": 408867.43,
+  "closingBalance": 128377.78,
+  "totalCredits": 177438.67,
+  "totalDebits": 457928.32,
+  "transactionCount": 44,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "RESUMEN DE CUENTAS after EBCDIC decoding: Saldo Inicial, Depósitos/Abonos, Retiros/Cargos, Saldo Final.",
+    "arithmetic": "opening + credits − debits = closing (408,867.43 + 177,438.67 − 457,928.32 = 128,377.78)",
+    "transactionCount": "Every row prints a running balance; the chain holds for all rows."
+  },
+  "knownAnomalies": [],
+  "notes": ["The PDF text layer is EBCDIC-encoded; read naively it is garbage."]
+}

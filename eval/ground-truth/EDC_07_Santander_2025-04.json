@@ -1,0 +1,22 @@
+{
+  "file": "EDC_07_Santander_2025-04.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Santander",
+  "currency": "MXN",
+  "periodStart": "2025-04-01",
+  "periodEnd": "2025-04-30",
+  "openingBalance": 51732.99,
+  "closingBalance": 32586.07,
+  "totalCredits": 585902.87,
+  "totalDebits": 605049.79,
+  "transactionCount": 306,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "SALDO FINAL DEL PERIODO ANTERIOR, table TOTAL row (DEPOSITO / RETIRO), Resumen saldos MES ACTUAL.",
+    "arithmetic": "opening + credits − debits = closing (51,732.99 + 585,902.87 − 605,049.79 = 32,586.07)",
+    "transactionCount": "Every row prints a running balance; the chain holds for all rows."
+  },
+  "knownAnomalies": [],
+  "notes": []
+}

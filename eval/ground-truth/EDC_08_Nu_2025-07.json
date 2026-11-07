@@ -1,0 +1,24 @@
+{
+  "file": "EDC_08_Nu_2025-07.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Nu",
+  "currency": "MXN",
+  "periodStart": "2025-07-01",
+  "periodEnd": "2025-07-31",
+  "openingBalance": 3414.7,
+  "closingBalance": 14141.61,
+  "totalCredits": 33477.62,
+  "totalDebits": 22750.71,
+  "transactionCount": null,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "Summary page 1: Saldo inicial, Depósitos 33,459.38, Gastos 22,750.71, Dinero generado este mes 18.24, Saldo al generar este estado de cuenta. Credits = Depósitos + Dinero generado.",
+    "arithmetic": "opening + credits − debits = closing (3,414.70 + 33,477.62 − 22,750.71 = 14,141.61)",
+    "transactionCount": "Not verified: rows have no running balance and include internal transfers between the account and \"Cajitas\"."
+  },
+  "knownAnomalies": [
+    "The movements table mixes internal Cajita transfers (in both directions) with real deposits and expenses, and the month's interest (18.24) is not a row. Row sums therefore differ from the bank's totals."
+  ],
+  "notes": []
+}

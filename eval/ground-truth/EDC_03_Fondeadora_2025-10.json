@@ -1,0 +1,24 @@
+{
+  "file": "EDC_03_Fondeadora_2025-10.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Fondeadora",
+  "currency": "MXN",
+  "periodStart": "2025-10-01",
+  "periodEnd": "2025-10-31",
+  "openingBalance": 25367.29,
+  "closingBalance": 6798.61,
+  "totalCredits": 630180.06,
+  "totalDebits": 648748.74,
+  "transactionCount": 41,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "Resumen block. Debits = Retiros 648,712.60 + Impuestos retenidos (ISR) 36.14; the bank's \"Retiros\" excludes withheld tax. Credits include interest earned 216.83.",
+    "arithmetic": "opening + credits − debits = closing (25,367.29 + 630,180.06 − 648,748.74 = 6,798.61)",
+    "transactionCount": "Totals reconcile; every row prints a balance."
+  },
+  "knownAnomalies": [
+    "The interest and ISR rows are printed at the end of the table with balances from earlier in the month, so the running balance breaks at those 2 rows. The document itself is inconsistent; the expected behaviour is to flag it, not to \"fix\" it."
+  ],
+  "notes": []
+}

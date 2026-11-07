@@ -1,0 +1,22 @@
+{
+  "file": "EDC_05_BBVA_2025-09.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "BBVA",
+  "currency": "MXN",
+  "periodStart": "2025-09-01",
+  "periodEnd": "2025-09-30",
+  "openingBalance": 60000.0,
+  "closingBalance": 119983.15,
+  "totalCredits": 452691.69,
+  "totalDebits": 392708.54,
+  "transactionCount": 161,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "Saldo de Liquidación Inicial, Depósitos / Abonos (+), Retiros / Cargos (−), Saldo Final (+).",
+    "arithmetic": "opening + credits − debits = closing (60,000.00 + 452,691.69 − 392,708.54 = 119,983.15)",
+    "transactionCount": "Count printed by the bank: TOTAL MOVIMIENTOS ABONOS 26 + CARGOS 135."
+  },
+  "knownAnomalies": [],
+  "notes": []
+}

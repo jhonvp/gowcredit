@@ -1,0 +1,22 @@
+{
+  "file": "EDC_02_Hey_2025-04.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Hey Banco",
+  "currency": "MXN",
+  "periodStart": "2025-04-01",
+  "periodEnd": "2025-04-30",
+  "openingBalance": 1272.94,
+  "closingBalance": 744.94,
+  "totalCredits": 187637.89,
+  "totalDebits": 188165.89,
+  "transactionCount": 282,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "Saldo Inicial / Saldo Final; credits and debits from the table \"Total\" row (the summary splits debits into Retiros, Comisiones and Otros Cargos).",
+    "arithmetic": "opening + credits − debits = closing (1,272.94 + 187,637.89 − 188,165.89 = 744.94)",
+    "transactionCount": "Every row prints a running balance; the chain holds for all rows."
+  },
+  "knownAnomalies": [],
+  "notes": []
+}
