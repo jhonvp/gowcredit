@@ -73,6 +73,8 @@ describe('documents intake (integration)', () => {
       ]),
     ).toEqual([
       ['T0', null],
+      ['T1', 'no-pages-need-ocr'],
+      ['T2', null],
       ['T3', 'fixture-missing'],
       ['T4', 'fixture-missing'],
     ]);
