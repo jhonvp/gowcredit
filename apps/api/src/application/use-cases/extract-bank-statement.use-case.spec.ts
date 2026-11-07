@@ -78,4 +78,42 @@ describe('ExtractBankStatementUseCase', () => {
     expect(out.needsReview).toBe(true);
     expect(out.validation.failedSections).toEqual(['transactions']);
   });
+
+  it('continues past a skipped tier and passes the best candidate forward', async () => {
+    const skipped: StatementExtractorPort = {
+      tier: 'T3',
+      extract: vi.fn(async () => ({ skipped: 'fixture-missing', diagnostics: {} })),
+    };
+    const t4 = tier('T4', 1500);
+    const out = await new ExtractBankStatementUseCase(
+      text,
+      [tier('T0', 9999), skipped, t4],
+      logger,
+    ).execute(new Uint8Array(), { documentId: 'd1' });
+    expect(out.attempts.map((a) => [a.tier, a.passed, a.skipped])).toEqual([
+      ['T0', false, undefined],
+      ['T3', false, 'fixture-missing'],
+      ['T4', true, undefined],
+    ]);
+    const context = vi.mocked(t4.extract).mock.calls[0]?.[1];
+    expect(context?.previous?.tier).toBe('T0');
+    expect(context?.previous?.validation.passed).toBe(false);
+  });
+
+  it('keeps the earlier candidate when a later tier fails more checks', async () => {
+    const worse: StatementExtractorPort = {
+      tier: 'T3',
+      extract: vi.fn(async () => ({
+        statement: { ...statement(9999), transactions: [] },
+        diagnostics: { costUsd: 0.01 },
+      })),
+    };
+    const out = await new ExtractBankStatementUseCase(
+      text,
+      [tier('T0', 9999), worse],
+      logger,
+    ).execute(new Uint8Array(), { documentId: 'd1' });
+    expect(out.resolvedBy).toBe('T0');
+    expect(out.costUsd).toBe(0.01);
+  });
 });

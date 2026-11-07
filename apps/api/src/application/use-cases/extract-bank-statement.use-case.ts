@@ -5,14 +5,21 @@ import {
 } from '../../domain/validation/statement-validators';
 import type { DocumentTextPort } from '../ports/document-text.port';
 import type { LoggerPort } from '../ports/logger.port';
-import type { StatementExtractorPort } from '../ports/statement-extractor.port';
+import {
+  type Diagnostics,
+  isSkipped,
+  type StatementExtractorPort,
+} from '../ports/statement-extractor.port';
 
 export interface TierAttempt {
   tier: Tier;
   passed: boolean;
+  /** Why the tier did not run (no fixture, LLM off, nothing to repair); absent if it ran. */
+  skipped?: string;
   failedSections: string[];
   durationMs: number;
-  diagnostics: Record<string, string | number | boolean | null>;
+  costUsd: number;
+  diagnostics: Diagnostics;
 }
 
 export interface ExtractionOutcome {
@@ -21,13 +28,17 @@ export interface ExtractionOutcome {
   /** Tier whose output was kept. */
   resolvedBy: Tier;
   attempts: TierAttempt[];
+  /** LLM spend for this document across tiers (replayed fixtures report the original call's cost). */
+  costUsd: number;
   /** True when no tier produced a statement that passes the validators (→ owner clarification). */
   needsReview: boolean;
 }
 
 /**
  * Runs the extraction tiers in cost order and stops at the first one whose output passes the domain
- * validators (ADR 0002). This PR wires T0 only; later tiers plug in as more StatementExtractorPorts.
+ * validators (ADR 0002). Each tier sees the best candidate so far, so later tiers can repair it
+ * instead of starting over. A tier's output replaces the candidate only if it passes, or if it fails
+ * fewer blocking checks.
  */
 export class ExtractBankStatementUseCase {
   constructor(
@@ -44,14 +55,33 @@ export class ExtractBankStatementUseCase {
 
     for (const tier of this.tiers) {
       const started = Date.now();
-      const { statement, diagnostics } = await tier.extract(text);
-      const validation = validateStatement(statement);
+      const out = await tier.extract(text, { documentId: ref.documentId, previous: best });
+      const costUsd = typeof out.diagnostics.costUsd === 'number' ? out.diagnostics.costUsd : 0;
+      if (isSkipped(out)) {
+        attempts.push({
+          tier: tier.tier,
+          passed: false,
+          skipped: out.skipped,
+          failedSections: [],
+          durationMs: Date.now() - started,
+          costUsd,
+          diagnostics: out.diagnostics,
+        });
+        this.logger.info('extraction tier skipped', {
+          documentId: ref.documentId,
+          tier: tier.tier,
+          reason: out.skipped,
+        });
+        continue;
+      }
+      const validation = validateStatement(out.statement);
       const attempt: TierAttempt = {
         tier: tier.tier,
         passed: validation.passed,
         failedSections: validation.failedSections,
         durationMs: Date.now() - started,
-        diagnostics,
+        costUsd,
+        diagnostics: out.diagnostics,
       };
       attempts.push(attempt);
       this.logger.info('extraction tier finished', {
@@ -60,18 +90,24 @@ export class ExtractBankStatementUseCase {
         passed: attempt.passed,
         failedSections: attempt.failedSections,
         durationMs: attempt.durationMs,
+        costUsd,
       });
-      if (!best || validation.passed) best = { statement, validation, tier: tier.tier };
+      if (!best || validation.passed || failures(validation) < failures(best.validation))
+        best = { statement: out.statement, validation, tier: tier.tier };
       if (validation.passed) break;
     }
 
-    const kept = best as NonNullable<typeof best>;
+    if (!best) throw new Error('Every extraction tier was skipped');
     return {
-      statement: kept.statement,
-      validation: kept.validation,
-      resolvedBy: kept.tier,
+      statement: best.statement,
+      validation: best.validation,
+      resolvedBy: best.tier,
       attempts,
-      needsReview: !kept.validation.passed,
+      costUsd: attempts.reduce((a, t) => a + t.costUsd, 0),
+      needsReview: !best.validation.passed,
     };
   }
 }
+
+const failures = (v: ValidationReport): number =>
+  v.checks.filter((c) => c.blocking && !c.passed).length;
