@@ -21,3 +21,20 @@ T0's row builder runs again on those labels.
 
 **Trade-off.** A simple model, explainable and fast, whose weights are versioned in the repo.
 Gradient boosting or ONNX is a documented upgrade path.
+
+**Implementation (2026-11-07).** What changed from the plan above:
+
+- **Labels without hand labeling.** T0 records the role of every table line. The training script keeps
+  only documents whose T0 output passes every blocking validator, so the labels are confirmed by the
+  documents' own arithmetic: 6,103 lines from 7 documents.
+- **Classes reduced to 4:** `table_header | transaction_row | continuation | other`. Summary fields are
+  already handled by T0's label matching.
+- **21 features**, listed in `t2/line-features.ts`. The weights are a generated TS module, so no JSON
+  asset needs copying at build time.
+- **Row builder.** Rows come from `transaction_row` lines plus their continuations. The debit/credit
+  side is decided by the running balance, then by an explicit sign. As a last resort, and only in
+  documents whose rows mostly lack a running balance, it uses the nearest column of the line the
+  classifier labeled as header.
+- **Reported numbers are in-sample.** Leave-one-bank-out is an agreed cut. T2 alone rebuilds 6 of the
+  7 training documents exactly. BBVA gets all 161 rows, with one debit/credit mix-up. See
+  `eval/reports/classifier.md`.

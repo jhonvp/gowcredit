@@ -55,9 +55,10 @@ cascade and writes the result to Postgres (`make logs` to watch it).
 ## Extraction eval and LLM modes
 
 ```bash
-make eval          # T0 → T3 (Haiku) → T4 (Opus agent), LLM answers replayed from fixtures/llm
+make eval          # T0 → T1 OCR → T2 classifier → T3 Haiku → T4 Opus agent (LLM replayed from fixtures/llm)
 make eval-t0       # deterministic baseline only
 make eval-record   # record missing LLM fixtures (needs ANTHROPIC_API_KEY in .env)
+make train-classifier  # retrain the T2 line classifier (labels come from T0-validated documents)
 ```
 
 `LLM_MODE` controls the LLM tiers everywhere (API and eval): `replay` (default, no key needed),
