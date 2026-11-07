@@ -2,7 +2,7 @@
 DC := docker compose
 RUN := $(DC) run --rm tools
 
-.PHONY: up down logs ps sh install eval eval-t0 eval-record test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
+.PHONY: up down logs ps sh install eval eval-t0 eval-record train-classifier test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
 
 up:            ## start the full stack (api, web, postgres, floci, mailpit)
 	$(DC) up -d --build
@@ -22,6 +22,8 @@ eval-t0:       ## deterministic baseline only (no LLM tiers)
 	$(DC) run --rm -e EVAL_TIERS=T0 tools pnpm --filter @gowcredit/api eval
 eval-record:   ## call the API for requests without a fixture and record them (needs ANTHROPIC_API_KEY in .env)
 	$(DC) run --rm -e LLM_MODE=record tools pnpm --filter @gowcredit/api eval
+train-classifier: ## retrain the T2 line classifier from T0-validated documents → t2/line-model.generated.ts
+	$(RUN) pnpm --filter @gowcredit/api train-classifier
 test:          ## unit tests (no services needed)
 	$(RUN) pnpm test
 test-integration: ## API + real Postgres (gowcredit_test db) + Floci S3/SQS (test bucket/queue)

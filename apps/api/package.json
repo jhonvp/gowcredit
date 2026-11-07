@@ -16,7 +16,8 @@
     "migration:generate": "pnpm typeorm migration:generate",
     "migration:run": "pnpm typeorm migration:run",
     "migration:revert": "pnpm typeorm migration:revert",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "train-classifier": "tsx scripts/train-classifier.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
