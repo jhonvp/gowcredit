@@ -18,7 +18,7 @@ export class AppConfig {
     return this.config.get('LOG_PRETTY', { infer: true });
   }
   get databaseUrl(): string {
-    return this.config.get('DATABASE_URL', { infer: true });
+    return this.config.get('DATABASE_URL', { infer: true }) as string;
   }
   get dbLogging(): boolean {
     return this.config.get('DB_LOGGING', { infer: true });
