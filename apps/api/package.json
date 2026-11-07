@@ -31,6 +31,7 @@
     "@nestjs/terminus": "^12.1.0",
     "@nestjs/typeorm": "^12.0.3",
     "dd-trace": "^6.24.0",
+    "fast-xml-parser": "^5.12.0",
     "nestjs-pino": "^5.3.1",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
@@ -38,6 +39,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "typeorm": "^1.1.2",
+    "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
