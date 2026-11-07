@@ -27,3 +27,19 @@ that the pipeline is expected to handle without review.
 `bankName`, `currency`, `periodStart`, `periodEnd`, `openingBalance`, `closingBalance`, `totalCredits`,
 `totalDebits`, `transactionCount` (when labeled). Money must match to the cent, and dates exactly. Totals
 are the sums of the extracted rows, so they also measure row extraction.
+
+## LLM tiers in the eval (replay, record, baseline)
+
+| Command            | What runs                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `make eval`        | T0 → T3 → T4 with `LLM_MODE=replay`: LLM answers come from `fixtures/llm`, no API key, identical every run |
+| `make eval-t0`     | T0 only (deterministic baseline)                                                                           |
+| `make eval-record` | Same cascade; requests with no fixture call the API and are saved (needs `ANTHROPIC_API_KEY` in `.env`)    |
+
+LLM tiers run only on documents the earlier tiers could not resolve. In replay mode a tier whose exact
+request has no fixture is reported as skipped (`T3⊘ (fixture-missing)`) and never changes the result of
+the earlier tiers. The fixture key is the SHA-256 of the full request (model id, prompt, document text,
+schema, history), so changing a prompt, a model or the T0 output that feeds a tier needs re-recording.
+
+The report adds the LLM cost per document (as recorded; replayed runs report the cost of the original
+call) and the number of agent turns.
