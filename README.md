@@ -5,8 +5,9 @@ Ingests bank statements and CFDI invoices, extracts their data through a cost-or
 validates it, and decides whether the supplier qualifies. When something is unclear, it asks the owner
 and uses the answer.
 
-> Status: extraction T0 (deterministic) and the LLM tiers T3/T4 are in. Eligibility and the
-> clarification loop land in follow-up PRs (see [`docs/PLAN.md`](docs/PLAN.md)).
+> Status: complete per [`docs/PLAN.md`](docs/PLAN.md): extraction cascade T0–T4, eligibility engine,
+> CFDI XML, auth, owner clarification loop, three web screens, analyst copilot, Terraform and CI/CD.
+> LLM replay fixtures are not recorded yet (`make eval-record` with an API key).
 
 ## Requirements
 
