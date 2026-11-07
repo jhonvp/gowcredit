@@ -16,12 +16,15 @@ import { AppConfig } from '../config/app-config';
 import { createLlm } from '../llm/create-llm';
 import { T3LlmStatementExtractor } from './llm/t3-llm-statement-extractor';
 import { T4RepairAgentExtractor } from './llm/t4-repair-agent-extractor';
+import { T1OcrStatementExtractor } from './ocr/t1-ocr-statement-extractor';
+import { TesseractOcrAdapter } from './ocr/tesseract-ocr.adapter';
 import { PopplerTextAdapter } from './pdf/poppler-text.adapter';
 import { T0StatementExtractor } from './t0/t0-statement-extractor';
+import { T2ClassifierStatementExtractor } from './t2/t2-classifier-statement-extractor';
 
 /**
- * Extraction cascade wiring (ADR 0002/0004/0010). Tier order is cost order: T0 → T3 → T4
- * (T1 OCR and T2 classifier plug in between when they land).
+ * Extraction cascade wiring (ADR 0002/0003/0004/0010). Tier order is cost order:
+ * T0 deterministic → T1 OCR → T2 line classifier → T3 Haiku → T4 Opus repair agent.
  */
 @Module({
   providers: [
@@ -41,6 +44,8 @@ import { T0StatementExtractor } from './t0/t0-statement-extractor';
       inject: [LLM_PORT, AGENT_PORT],
       useFactory: (llm: LlmPort, agent: AgentPort): StatementExtractorPort[] => [
         new T0StatementExtractor(),
+        new T1OcrStatementExtractor(new TesseractOcrAdapter()),
+        new T2ClassifierStatementExtractor(),
         new T3LlmStatementExtractor(llm),
         new T4RepairAgentExtractor(agent),
       ],

@@ -1,7 +1,7 @@
 // Extraction eval (make eval). Runs the extraction use case over the dataset and scores it against
 // eval/ground-truth. Writes eval/reports/latest.{md,json}. See eval/README.md.
 //
-// LLM_MODE=replay (default) answers T3/T4 from fixtures/llm; record/live call the API.
+// Cascade T0 → T1 OCR → T2 classifier → T3 → T4. LLM_MODE=replay (default) answers T3/T4 from fixtures/llm; record/live call the API.
 // EVAL_TIERS=T0 runs the deterministic baseline only.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -13,8 +13,11 @@ import { formatMxn, toCents } from '../src/domain/shared/money';
 import { totalCredits, totalDebits } from '../src/domain/statement/bank-statement';
 import { T3LlmStatementExtractor } from '../src/infrastructure/extraction/llm/t3-llm-statement-extractor';
 import { T4RepairAgentExtractor } from '../src/infrastructure/extraction/llm/t4-repair-agent-extractor';
+import { T1OcrStatementExtractor } from '../src/infrastructure/extraction/ocr/t1-ocr-statement-extractor';
+import { TesseractOcrAdapter } from '../src/infrastructure/extraction/ocr/tesseract-ocr.adapter';
 import { PopplerTextAdapter } from '../src/infrastructure/extraction/pdf/poppler-text.adapter';
 import { T0StatementExtractor } from '../src/infrastructure/extraction/t0/t0-statement-extractor';
+import { T2ClassifierStatementExtractor } from '../src/infrastructure/extraction/t2/t2-classifier-statement-extractor';
 import { createLlm, llmSettingsFromEnv } from '../src/infrastructure/llm/create-llm';
 
 const ROOT = resolve(__dirname, '../../..');
@@ -79,6 +82,8 @@ function buildTiers(): StatementExtractorPort[] {
   const llm = createLlm(llmSettings, quiet);
   return [
     new T0StatementExtractor(),
+    new T1OcrStatementExtractor(new TesseractOcrAdapter()),
+    new T2ClassifierStatementExtractor(),
     new T3LlmStatementExtractor(llm),
     new T4RepairAgentExtractor(new ToolLoopAgent(llm, quiet)),
   ];
@@ -163,7 +168,9 @@ function summarize(results: DocResult[]) {
   });
   return {
     generatedAt: new Date().toISOString(),
-    pipeline: ONLY_T0 ? 'T0 (deterministic)' : `T0 → T3 → T4 (LLM_MODE=${llmSettings.mode})`,
+    pipeline: ONLY_T0
+      ? 'T0 (deterministic)'
+      : `T0 → T1 → T2 → T3 → T4 (LLM_MODE=${llmSettings.mode})`,
     documents: results.length,
     fieldAccuracy: { correct: all.filter((x) => x.ok).length, total: all.length },
     documentsFullyCorrect: results.filter((r) => r.scored.every((x) => x.ok)).length,
