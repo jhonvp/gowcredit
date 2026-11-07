@@ -166,7 +166,17 @@ export function readRowDate(
 ): { date: PartialDate; end: number } | null {
   const t = normalize(line);
   const lead = t.length - t.trimStart().length;
-  if (lead > 3) return null;
+  if (lead > 6) return null;
+  if (allowDayOnly) {
+    // Tables with a "día" column print only the day. Do not read "19 MAR…" as March: MAR can be a merchant.
+    const m = /(\d{1,2})(?=[\sa-z])/y;
+    m.lastIndex = lead;
+    const dm = m.exec(t);
+    const day = dm ? Number(dm[1]) : 0;
+    return dm && day >= 1 && day <= 31
+      ? { date: { day, month: null, year: null }, end: lead + (dm[0] as string).length }
+      : null;
+  }
   // "ene. 16" (month first)
   const mf = new RegExp(String.raw`(${MONTH_WORD})\.?\s+(\d{1,2})(?![\d/.,:-])`, 'y');
   mf.lastIndex = lead;
