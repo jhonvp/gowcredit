@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { buildDataSourceOptions } from '../../src/infrastructure/persistence/data-source.options';
+import { seed } from '../../src/infrastructure/persistence/seed';
 
 /** Recreates the e2e schema from migrations, so the tests also prove the migrations work. */
 export default async function setup(): Promise<void> {
@@ -13,6 +14,7 @@ export default async function setup(): Promise<void> {
   await ds.initialize();
   await ds.dropDatabase();
   await ds.runMigrations();
+  await seed(ds);
   await ds.destroy();
 }
 

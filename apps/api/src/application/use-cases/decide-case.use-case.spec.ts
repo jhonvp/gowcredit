@@ -55,6 +55,8 @@ function repo(c: CaseRecord) {
 const caseWith = (status: CaseRecord['status']): CaseRecord => ({
   id: 'c1',
   status,
+  supplierId: 's1',
+  ownerEmail: 'owner@demo.mx',
   facts: {},
   decision: null,
   createdAt: new Date(),

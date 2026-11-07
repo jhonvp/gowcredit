@@ -54,15 +54,26 @@ export class SubmitDocumentUseCase {
     private readonly logger: LoggerPort,
   ) {}
 
-  /** Creates a case, or adds the document to `caseId` (a statement and an invoice are decided together). */
-  async execute(file: UploadedFile, caseId?: string): Promise<CaseRecord> {
+  /**
+   * Creates a case for `supplierId`, or adds the document to `caseId` (a statement and an invoice are
+   * decided together). A case of another supplier is reported as not found.
+   */
+  async execute(
+    file: UploadedFile,
+    opts: { supplierId: string | null; ownerEmail?: string | null; caseId?: string },
+  ): Promise<CaseRecord> {
+    const { caseId, supplierId } = opts;
     if (file.bytes.byteLength === 0) throw new UnsupportedDocumentError('Empty file');
     if (file.bytes.byteLength > MAX_DOCUMENT_BYTES)
       throw new UnsupportedDocumentError(`File larger than ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB`);
     const kind = sniffKind(file.bytes);
     if (!kind) throw new UnsupportedDocumentError('Only PDF statements and CFDI XML are accepted');
 
-    if (caseId && !(await this.cases.findCase(caseId))) throw new CaseNotFoundError(caseId);
+    if (caseId) {
+      const existing = await this.cases.findCase(caseId);
+      if (!existing || (supplierId !== null && existing.supplierId !== supplierId))
+        throw new CaseNotFoundError(caseId);
+    }
     const targetCase = caseId ?? this.ids.uuid();
     const documentId = this.ids.uuid();
     const storageKey = `cases/${targetCase}/${documentId}.${kind}`;
@@ -76,7 +87,11 @@ export class SubmitDocumentUseCase {
       storageKey,
     };
     if (caseId) await this.cases.addDocument(caseId, document);
-    else await this.cases.createCase(targetCase, document);
+    else
+      await this.cases.createCase(targetCase, document, {
+        supplierId,
+        ownerEmail: opts.ownerEmail?.trim().toLowerCase() || null,
+      });
     const created = (await this.cases.findCase(targetCase)) as CaseRecord;
     await this.queue.send({ type: 'extract-document', caseId: targetCase, documentId });
     this.logger.info('document received', {

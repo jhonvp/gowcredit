@@ -2,6 +2,8 @@ import { DataSource, In } from 'typeorm';
 import type {
   CaseRecord,
   CaseRepositoryPort,
+  CaseSummary,
+  NewCase,
   DecisionRecord,
   DocumentRecord,
   ExtractionRecord,
@@ -20,12 +22,42 @@ import {
 export class TypeOrmCaseRepository implements CaseRepositoryPort {
   constructor(private readonly ds: DataSource) {}
 
-  async createCase(caseId: string, document: NewDocument): Promise<CaseRecord> {
+  async createCase(caseId: string, document: NewDocument, owner: NewCase): Promise<CaseRecord> {
     await this.ds.transaction(async (tx) => {
-      await tx.insert(CaseOrmEntity, { id: caseId, status: 'RECEIVED' });
+      await tx.insert(CaseOrmEntity, { id: caseId, status: 'RECEIVED', ...owner });
       await tx.insert(DocumentOrmEntity, { ...document, caseId, docType: null });
     });
     return (await this.findCase(caseId)) as CaseRecord;
+  }
+
+  async listCases(filter: { supplierId?: string; limit: number }): Promise<CaseSummary[]> {
+    const rows: {
+      id: string;
+      status: CaseStatus;
+      supplier_id: string | null;
+      created_at: Date;
+      updated_at: Date;
+      document_count: string;
+      outcome: CaseSummary['outcome'];
+    }[] = await this.ds.query(
+      `SELECT c.id, c.status, c.supplier_id, c.created_at, c.updated_at,
+              (SELECT count(*) FROM documents d WHERE d.case_id = c.id) AS document_count,
+              (SELECT outcome FROM decisions x WHERE x.case_id = c.id ORDER BY x.created_at DESC LIMIT 1) AS outcome
+         FROM cases c
+        WHERE ($1::uuid IS NULL OR c.supplier_id = $1)
+        ORDER BY c.created_at DESC
+        LIMIT $2`,
+      [filter.supplierId ?? null, filter.limit],
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      supplierId: r.supplier_id,
+      documentCount: Number(r.document_count),
+      outcome: r.outcome,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
   }
 
   async addDocument(caseId: string, document: NewDocument): Promise<void> {
@@ -74,6 +106,8 @@ export class TypeOrmCaseRepository implements CaseRepositoryPort {
     return {
       id: row.id,
       status: row.status,
+      supplierId: row.supplierId,
+      ownerEmail: row.ownerEmail,
       facts: row.facts ?? {},
       decision: decision ? toDecision(decision) : null,
       createdAt: row.createdAt,
