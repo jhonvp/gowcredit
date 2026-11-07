@@ -80,7 +80,12 @@ export default tseslint.config(
     rules: restrict(['**/apps/api/**'], 'web consumes @gowcredit/contracts, never api sources'),
   },
   {
-    files: ['scripts/**/*.{ts,mjs}', '**/*.config.{ts,mjs}', 'apps/api/test/**/*.ts'],
+    files: [
+      'scripts/**/*.{ts,mjs}',
+      'apps/*/scripts/**/*.ts',
+      '**/*.config.{ts,mjs,mts}',
+      'apps/api/test/**/*.ts',
+    ],
     rules: { 'no-console': 'off' },
   },
 );
