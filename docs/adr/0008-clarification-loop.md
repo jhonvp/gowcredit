@@ -3,6 +3,7 @@
 **Status:** accepted
 
 **Flow.**
+
 1. A validator/rule result `NEEDS_INFO` creates `ClarificationQuestion` records (typed:
    `confirm_value | provide_value | upload_document | explain_discrepancy`).
 2. The case moves to `AWAITING_OWNER`.
