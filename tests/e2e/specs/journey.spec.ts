@@ -96,6 +96,12 @@ test('supplier → owner clarification → decision → analyst', async ({ page 
   await expect(page.getByRole('region', { name: 'Decisión' })).toContainText('Adelanto sugerido');
   await expect(page.getByText('resuelto por')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Aclaraciones' })).toContainText('answered');
+
+  // Copilot: in replay mode without fixtures it answers from the decision trace.
+  await page.getByRole('button', { name: 'Preguntar' }).click();
+  await expect(page.getByRole('region', { name: 'Copiloto' }).getByRole('status')).toContainText(
+    'QUALIFIES',
+  );
 });
 
 test('web proxies /api to the API container', async ({ request }) => {
