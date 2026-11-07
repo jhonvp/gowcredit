@@ -1,0 +1,655 @@
+{
+  "generatedAt": "2026-11-07T17:47:34.328Z",
+  "pipeline": "T0 (deterministic)",
+  "documents": 9,
+  "fieldAccuracy": {
+    "correct": 78,
+    "total": 80
+  },
+  "documentsFullyCorrect": 8,
+  "passedValidation": 7,
+  "anomalyFlags": {
+    "expected": 2,
+    "flagged": 2,
+    "falseFlags": []
+  },
+  "byField": [
+    {
+      "field": "bankName",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "field": "currency",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "field": "periodStart",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "field": "periodEnd",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "field": "openingBalance",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "field": "closingBalance",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "field": "totalCredits",
+      "correct": 8,
+      "total": 9
+    },
+    {
+      "field": "totalDebits",
+      "correct": 8,
+      "total": 9
+    },
+    {
+      "field": "transactionCount",
+      "correct": 8,
+      "total": 8
+    }
+  ],
+  "results": [
+    {
+      "file": "EDC_01_Inbursa_2025-01.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Inbursa",
+          "actual": "Inbursa",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2025-01-01",
+          "actual": "2025-01-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2025-01-31",
+          "actual": "2025-01-31",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "98.52",
+          "actual": "98.52",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "1,433.91",
+          "actual": "1,433.91",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "924,405.41",
+          "actual": "924,405.41",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "923,070.02",
+          "actual": "923,070.02",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "37",
+          "actual": "37",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 37,
+      "durationMs": 74,
+      "tiers": "T0✓"
+    },
+    {
+      "file": "EDC_02_Hey_2025-04.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Hey Banco",
+          "actual": "Hey Banco",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2025-04-01",
+          "actual": "2025-04-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2025-04-30",
+          "actual": "2025-04-30",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "1,272.94",
+          "actual": "1,272.94",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "744.94",
+          "actual": "744.94",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "187,637.89",
+          "actual": "187,637.89",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "188,165.89",
+          "actual": "188,165.89",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "282",
+          "actual": "282",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 282,
+      "durationMs": 246,
+      "tiers": "T0✓"
+    },
+    {
+      "file": "EDC_03_Fondeadora_2025-10.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Fondeadora",
+          "actual": "Fondeadora",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2025-10-01",
+          "actual": "2025-10-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2025-10-31",
+          "actual": "2025-10-31",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "25,367.29",
+          "actual": "25,367.29",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "6,798.61",
+          "actual": "6,798.61",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "630,180.06",
+          "actual": "630,180.06",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "648,748.74",
+          "actual": "648,748.74",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "41",
+          "actual": "41",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": true,
+      "failedChecks": ["running-balance: 2/41 rows break the chain (first at row 36)"],
+      "expectedFlag": true,
+      "rows": 41,
+      "durationMs": 19,
+      "tiers": "T0✗"
+    },
+    {
+      "file": "EDC_04_Banamex_2026-02.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Banamex",
+          "actual": "Banamex",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2026-02-01",
+          "actual": "2026-02-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2026-02-28",
+          "actual": "2026-02-28",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "255,014.07",
+          "actual": "255,014.07",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "81,070.94",
+          "actual": "81,070.94",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "175,349.83",
+          "actual": "175,349.83",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "349,292.96",
+          "actual": "349,292.96",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "93",
+          "actual": "93",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 93,
+      "durationMs": 129,
+      "tiers": "T0✓"
+    },
+    {
+      "file": "EDC_05_BBVA_2025-09.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "BBVA",
+          "actual": "BBVA",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2025-09-01",
+          "actual": "2025-09-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2025-09-30",
+          "actual": "2025-09-30",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "60,000.00",
+          "actual": "60,000.00",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "119,983.15",
+          "actual": "119,983.15",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "452,691.69",
+          "actual": "452,691.69",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "392,708.54",
+          "actual": "392,708.54",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "161",
+          "actual": "161",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 161,
+      "durationMs": 68,
+      "tiers": "T0✓"
+    },
+    {
+      "file": "EDC_06_MercadoPago_2026-06a09.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Mercado Pago",
+          "actual": "Mercado Pago",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2026-06-13",
+          "actual": "2026-06-13",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2026-09-11",
+          "actual": "2026-09-11",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "69.30",
+          "actual": "69.30",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "228.23",
+          "actual": "228.23",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "207,447.58",
+          "actual": "207,447.58",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "207,288.65",
+          "actual": "207,288.65",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "217",
+          "actual": "217",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 217,
+      "durationMs": 42,
+      "tiers": "T0✓"
+    },
+    {
+      "file": "EDC_07_Santander_2025-04.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Santander",
+          "actual": "Santander",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2025-04-01",
+          "actual": "2025-04-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2025-04-30",
+          "actual": "2025-04-30",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "51,732.99",
+          "actual": "51,732.99",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "32,586.07",
+          "actual": "32,586.07",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "585,902.87",
+          "actual": "585,902.87",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "605,049.79",
+          "actual": "605,049.79",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "306",
+          "actual": "306",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 306,
+      "durationMs": 124,
+      "tiers": "T0✓"
+    },
+    {
+      "file": "EDC_08_Nu_2025-07.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "Nu",
+          "actual": "Nu",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2025-07-01",
+          "actual": "2025-07-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2025-07-31",
+          "actual": "2025-07-31",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "3,414.70",
+          "actual": "3,414.70",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "14,141.61",
+          "actual": "14,141.61",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "33,477.62",
+          "actual": "80,470.32",
+          "ok": false
+        },
+        {
+          "field": "totalDebits",
+          "expected": "22,750.71",
+          "actual": "69,761.65",
+          "ok": false
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": true,
+      "failedChecks": [
+        "rows-reconcile: opening + credits − debits = 14,123.37 vs closing 14,141.61 (diff -18.24)"
+      ],
+      "expectedFlag": true,
+      "rows": 468,
+      "durationMs": 82,
+      "tiers": "T0✗"
+    },
+    {
+      "file": "EDC_09_HSBC_2026-03.pdf",
+      "scored": [
+        {
+          "field": "bankName",
+          "expected": "HSBC",
+          "actual": "HSBC",
+          "ok": true
+        },
+        {
+          "field": "currency",
+          "expected": "MXN",
+          "actual": "MXN",
+          "ok": true
+        },
+        {
+          "field": "periodStart",
+          "expected": "2026-03-01",
+          "actual": "2026-03-01",
+          "ok": true
+        },
+        {
+          "field": "periodEnd",
+          "expected": "2026-03-31",
+          "actual": "2026-03-31",
+          "ok": true
+        },
+        {
+          "field": "openingBalance",
+          "expected": "408,867.43",
+          "actual": "408,867.43",
+          "ok": true
+        },
+        {
+          "field": "closingBalance",
+          "expected": "128,377.78",
+          "actual": "128,377.78",
+          "ok": true
+        },
+        {
+          "field": "totalCredits",
+          "expected": "177,438.67",
+          "actual": "177,438.67",
+          "ok": true
+        },
+        {
+          "field": "totalDebits",
+          "expected": "457,928.32",
+          "actual": "457,928.32",
+          "ok": true
+        },
+        {
+          "field": "transactionCount",
+          "expected": "44",
+          "actual": "44",
+          "ok": true
+        }
+      ],
+      "resolvedBy": "T0",
+      "needsReview": false,
+      "failedChecks": [],
+      "expectedFlag": false,
+      "rows": 44,
+      "durationMs": 61,
+      "tiers": "T0✓"
+    }
+  ]
+}
