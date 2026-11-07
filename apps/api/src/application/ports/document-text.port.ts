@@ -6,6 +6,8 @@ export interface PageText {
   /** 1-based page number. */
   number: number;
   lines: string[];
+  /** Set when this page's text came from OCR instead of the PDF text layer (T1). */
+  source?: 'pdf-text-layer' | 'ocr';
 }
 
 export interface DocumentText {

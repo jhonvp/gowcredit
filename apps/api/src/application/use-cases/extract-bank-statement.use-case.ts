@@ -49,13 +49,13 @@ export class ExtractBankStatementUseCase {
 
   async execute(pdf: Uint8Array, ref: { documentId: string }): Promise<ExtractionOutcome> {
     if (this.tiers.length === 0) throw new Error('No extraction tiers configured');
-    const text = await this.text.extract(pdf);
+    let text = await this.text.extract(pdf);
     const attempts: TierAttempt[] = [];
     let best: { statement: BankStatement; validation: ValidationReport; tier: Tier } | null = null;
 
     for (const tier of this.tiers) {
       const started = Date.now();
-      const out = await tier.extract(text, { documentId: ref.documentId, previous: best });
+      const out = await tier.extract(text, { documentId: ref.documentId, pdf, previous: best });
       const costUsd = typeof out.diagnostics.costUsd === 'number' ? out.diagnostics.costUsd : 0;
       if (isSkipped(out)) {
         attempts.push({
@@ -74,6 +74,7 @@ export class ExtractBankStatementUseCase {
         });
         continue;
       }
+      if (out.text) text = out.text;
       const validation = validateStatement(out.statement);
       const attempt: TierAttempt = {
         tier: tier.tier,
