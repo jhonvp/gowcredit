@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  StreamableFile,
   BadRequestException,
   Body,
   Controller,
@@ -22,6 +23,10 @@ import {
   CASE_REPOSITORY_PORT,
   type CaseRepositoryPort,
 } from '../../application/ports/case-repository.port';
+import {
+  OBJECT_STORAGE_PORT,
+  type ObjectStoragePort,
+} from '../../application/ports/object-storage.port';
 import {
   CLARIFICATION_REPOSITORY_PORT,
   type ClarificationRepositoryPort,
@@ -53,7 +58,24 @@ export class DocumentsController {
     private readonly submit: SubmitDocumentUseCase,
     @Inject(CASE_REPOSITORY_PORT) private readonly cases: CaseRepositoryPort,
     @Inject(CLARIFICATION_REPOSITORY_PORT) private readonly requests: ClarificationRepositoryPort,
+    @Inject(OBJECT_STORAGE_PORT) private readonly storage: ObjectStoragePort,
   ) {}
+
+  /** The original file, for the analyst's side-by-side view. Same access rule as the case. */
+  @Get('documents/:id/file')
+  async file(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<StreamableFile> {
+    const doc = await this.cases.findDocument(id);
+    const c = doc ? await this.cases.findCase(doc.caseId) : null;
+    if (!doc || !c || !canReadCase(p, c)) throw new NotFoundException('document not found');
+    const bytes = await this.storage.get(doc.storageKey);
+    return new StreamableFile(Buffer.from(bytes), {
+      type: doc.mimeType,
+      disposition: `inline; filename="${doc.originalName.replace(/[^\w.-]/g, '_')}"`,
+    });
+  }
 
   /** Multipart: `file`, optional `ownerEmail` (who answers questions; defaults to the supplier). */
   @Post('documents')
