@@ -50,7 +50,14 @@ curl localhost:3000/api/cases/<caseId>
 ```
 
 The API stores the file in S3 (Floci) and queues a job on SQS; the `worker` service runs the
-cascade and writes the result to Postgres (`make logs` to watch it).
+cascade, writes the result to Postgres and runs the eligibility policy (`make logs` to watch it).
+
+Add an invoice to the same case so both are decided together (synthetic CFDIs in `samples/cfdi/`):
+
+```bash
+curl -F "file=@samples/cfdi/factura-ppd-anchor.xml;type=application/xml" localhost:3000/api/cases/<caseId>/documents
+curl localhost:3000/api/cases/<caseId>     # decision: outcome, score, rules, missing info, suggested advance
+```
 
 ## Extraction eval and LLM modes
 

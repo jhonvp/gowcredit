@@ -61,8 +61,34 @@ Order: integrity → knockouts → score. Integrity problems never lead to a rej
 - Invoice only → invoice knockouts pass, but a supplier statement is needed → `NEEDS_INFO` asking for one.
 - Both → `QUALIFIES` if both pass. Suggested advance = `min(90% × invoice total, 50% × average monthly credits)`.
 
+## Implementation notes (v1)
+
+- Engine: `apps/api/src/domain/eligibility/engine.ts` (pure). Values: `apps/api/config/eligibility-policy.v1.yaml`.
+- **I4 applies to the CFDI.** Statement holder data is anonymized in the dataset (SPEC A4) and T0 does not
+  extract it, so it is not a reason to ask on its own.
+- **Owner facts** (`cases.facts`) fill what documents cannot carry: the invoice due date (C-K4), a
+  confirmation of a generic issuer RFC (I4), and the SAT status (C-K6). The clarification loop writes them
+  and re-runs the decision.
+- **C-K6 stub:** `SAT_STATUS_MODE=active` (default) assumes the CFDI is not cancelled; `unknown` makes
+  every invoice ask. A production adapter would call SAT's CFDI verification service.
+- **Questions are dropped after a knockout:** once a hard rule rejects, asking the owner cannot change the
+  outcome.
+- `ELIGIBILITY_AS_OF` fixes the evaluation date for reproducible runs; the default is today.
+
 ## Expected dev-set outcomes
 
 Most dev statements are older than 90 days relative to today. With `asOf = today` they end in
 `NEEDS_INFO (recent statement)`. The eval command runs with `asOf` = each statement's period end + 5 days
-so the financial rules are exercised; both modes are in the report.
+so the financial rules are exercised; both modes are in the report (`make eval`, section "Eligibility").
+
+| Document     | asOf = period end + 5                                     | asOf = 2026-11-07             |
+| ------------ | --------------------------------------------------------- | ----------------------------- |
+| Inbursa      | QUALIFIES (83)                                            | NEEDS_INFO (recent statement) |
+| Hey          | QUALIFIES (70)                                            | NEEDS_INFO (recent statement) |
+| Fondeadora   | NEEDS_INFO (unreadable: its own running balance breaks)   | same                          |
+| Banamex      | DOES_NOT_QUALIFY (58)                                     | NEEDS_INFO (recent statement) |
+| BBVA         | QUALIFIES (75)                                            | NEEDS_INFO (recent statement) |
+| Mercado Pago | QUALIFIES (70)                                            | QUALIFIES (70)                |
+| Santander    | QUALIFIES (60)                                            | NEEDS_INFO (recent statement) |
+| Nu           | NEEDS_INFO (unreadable until T3/T4 fixtures are recorded) | same                          |
+| HSBC         | QUALIFIES (68)                                            | NEEDS_INFO (recent statement) |
