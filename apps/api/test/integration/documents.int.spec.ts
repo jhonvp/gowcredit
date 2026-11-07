@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -81,6 +83,56 @@ describe('documents intake (integration)', () => {
     expect(doc.extraction.checks.find((c: { id: string }) => c.id === 'rows-present').passed).toBe(
       false,
     );
+    // The decision asks instead of rejecting: the statement could not be read reliably.
+    expect(after.body.decision).toMatchObject({ outcome: 'NEEDS_INFO', policyVersion: 'v1' });
+    expect(after.body.decision.missing.map((m: { code: string }) => m.code)).toEqual([
+      'STATEMENT_UNREADABLE',
+    ]);
+  });
+
+  const cfdi = (name: string) => readFileSync(join(__dirname, '../../../../samples/cfdi', name));
+  const upload = async (bytes: Buffer, name: string, caseId?: string) =>
+    (
+      await request(app.getHttpServer())
+        .post(caseId ? `/api/cases/${caseId}/documents` : '/api/documents')
+        .attach('file', bytes, { filename: name, contentType: 'application/xml' })
+        .expect(202)
+    ).body as { caseId: string };
+  const getCase = async (id: string) =>
+    (await request(app.getHttpServer()).get(`/api/cases/${id}`).expect(200)).body;
+
+  it('decides a CFDI: an already-paid (PUE) invoice does not qualify', async () => {
+    const { caseId } = await upload(cfdi('factura-pue-paid.xml'), 'pue.xml');
+    await worker.drain();
+    const c = await getCase(caseId);
+    expect(c.status).toBe('DECIDED');
+    expect(c.documents[0].docType).toBe('CFDI_INVOICE');
+    expect(c.documents[0].invoice).toMatchObject({ paymentMethod: 'PUE', total: 11_600_000 });
+    expect(c.decision.outcome).toBe('DOES_NOT_QUALIFY');
+    expect(c.decision.rules.find((r: { id: string }) => r.id === 'C-K2').passed).toBe(false);
+  });
+
+  it('asks for the due date and a supplier statement on a valid PPD invoice, then takes a second document', async () => {
+    const { caseId } = await upload(cfdi('factura-ppd-anchor.xml'), 'ppd.xml');
+    await worker.drain();
+    const first = await getCase(caseId);
+    expect(first.status).toBe('AWAITING_OWNER');
+    expect(first.decision.missing.map((m: { code: string }) => m.code).sort()).toEqual([
+      'INVOICE_DUE_DATE',
+      'SUPPLIER_STATEMENT',
+    ]);
+
+    const pdf = tinyPdf(['BANCO DEMO', 'Periodo del 01/03/2025 al 31/03/2025']);
+    await upload(Buffer.from(pdf), 'edc.pdf', caseId);
+    await worker.drain();
+    const second = await getCase(caseId);
+    expect(second.documents.map((d: { docType: string }) => d.docType).sort()).toEqual([
+      'BANK_STATEMENT',
+      'CFDI_INVOICE',
+    ]);
+    expect(second.decision.missing.map((m: { code: string }) => m.code)).not.toContain(
+      'SUPPLIER_STATEMENT',
+    );
   });
 
   it('rejects files that are not PDF or XML, and validates ids', async () => {
@@ -92,6 +144,13 @@ describe('documents intake (integration)', () => {
     await request(app.getHttpServer()).get('/api/cases/not-a-uuid').expect(400);
     await request(app.getHttpServer())
       .get('/api/cases/00000000-0000-4000-8000-000000000000')
+      .expect(404);
+    await request(app.getHttpServer())
+      .post('/api/cases/00000000-0000-4000-8000-000000000000/documents')
+      .attach('file', cfdi('factura-ppd-anchor.xml'), {
+        filename: 'x.xml',
+        contentType: 'application/xml',
+      })
       .expect(404);
   });
 });

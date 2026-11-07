@@ -20,6 +20,7 @@ import {
   type CaseRepositoryPort,
 } from '../../application/ports/case-repository.port';
 import {
+  CaseNotFoundError,
   MAX_DOCUMENT_BYTES,
   SubmitDocumentUseCase,
   UnsupportedDocumentError,
@@ -44,22 +45,44 @@ export class DocumentsController {
   @Post('documents')
   @HttpCode(202)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
-  async upload(@UploadedFile() file?: MulterFile): Promise<SubmitDocumentResponse> {
+  upload(@UploadedFile() file?: MulterFile): Promise<SubmitDocumentResponse> {
+    return this.receive(file);
+  }
+
+  /** Adds a document to an existing case: a statement and an invoice are decided together. */
+  @Post('cases/:id/documents')
+  @HttpCode(202)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
+  addToCase(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UploadedFile() file?: MulterFile,
+  ): Promise<SubmitDocumentResponse> {
+    return this.receive(file, id);
+  }
+
+  private async receive(
+    file: MulterFile | undefined,
+    caseId?: string,
+  ): Promise<SubmitDocumentResponse> {
     if (!file) throw new BadRequestException('multipart field "file" is required');
     try {
-      const created = await this.submit.execute({
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        bytes: file.buffer,
-        sha256: createHash('sha256').update(file.buffer).digest('hex'),
-      });
+      const updated = await this.submit.execute(
+        {
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          bytes: file.buffer,
+          sha256: createHash('sha256').update(file.buffer).digest('hex'),
+        },
+        caseId,
+      );
       return {
-        caseId: created.id,
-        documentId: created.documents[0]?.id as string,
-        status: created.status,
+        caseId: updated.id,
+        documentId: updated.documents[updated.documents.length - 1]?.id as string,
+        status: updated.status,
       };
     } catch (e) {
       if (e instanceof UnsupportedDocumentError) throw new UnsupportedMediaTypeException(e.message);
+      if (e instanceof CaseNotFoundError) throw new NotFoundException(e.message);
       throw e;
     }
   }
