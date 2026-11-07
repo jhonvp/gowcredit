@@ -1,18 +1,28 @@
 // Extraction eval (make eval). Runs the extraction use case over the dataset and scores it against
 // eval/ground-truth. Writes eval/reports/latest.{md,json}. See eval/README.md.
+//
+// LLM_MODE=replay (default) answers T3/T4 from fixtures/llm; record/live call the API.
+// EVAL_TIERS=T0 runs the deterministic baseline only.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { ToolLoopAgent } from '../src/application/agents/tool-loop-agent';
 import type { LoggerPort } from '../src/application/ports/logger.port';
+import type { StatementExtractorPort } from '../src/application/ports/statement-extractor.port';
 import { ExtractBankStatementUseCase } from '../src/application/use-cases/extract-bank-statement.use-case';
 import { formatMxn, toCents } from '../src/domain/shared/money';
 import { totalCredits, totalDebits } from '../src/domain/statement/bank-statement';
+import { T3LlmStatementExtractor } from '../src/infrastructure/extraction/llm/t3-llm-statement-extractor';
+import { T4RepairAgentExtractor } from '../src/infrastructure/extraction/llm/t4-repair-agent-extractor';
 import { PopplerTextAdapter } from '../src/infrastructure/extraction/pdf/poppler-text.adapter';
 import { T0StatementExtractor } from '../src/infrastructure/extraction/t0/t0-statement-extractor';
+import { createLlm, llmSettingsFromEnv } from '../src/infrastructure/llm/create-llm';
 
 const ROOT = resolve(__dirname, '../../..');
 const DATASET = resolve(process.env.EVAL_DATASET_DIR ?? join(ROOT, 'facturas'));
 const GROUND_TRUTH = join(ROOT, 'eval/ground-truth');
 const REPORTS = join(ROOT, 'eval/reports');
+const ONLY_T0 = process.env.EVAL_TIERS === 'T0';
+const llmSettings = llmSettingsFromEnv();
 
 interface GroundTruth {
   file: string;
@@ -59,16 +69,25 @@ interface DocResult {
   rows: number;
   durationMs: number;
   tiers: string;
+  costUsd: number;
+  agentTurns: number;
+  skipped: string[];
+}
+
+function buildTiers(): StatementExtractorPort[] {
+  if (ONLY_T0) return [new T0StatementExtractor()];
+  const llm = createLlm(llmSettings, quiet);
+  return [
+    new T0StatementExtractor(),
+    new T3LlmStatementExtractor(llm),
+    new T4RepairAgentExtractor(new ToolLoopAgent(llm, quiet)),
+  ];
 }
 
 async function main(): Promise<void> {
   if (!existsSync(DATASET))
     throw new Error(`Dataset not found: ${DATASET} (put the PDFs in facturas/)`);
-  const useCase = new ExtractBankStatementUseCase(
-    new PopplerTextAdapter(),
-    [new T0StatementExtractor()],
-    quiet,
-  );
+  const useCase = new ExtractBankStatementUseCase(new PopplerTextAdapter(), buildTiers(), quiet);
   const files = readdirSync(GROUND_TRUTH)
     .filter((f) => f.endsWith('.json'))
     .sort();
@@ -117,7 +136,15 @@ async function main(): Promise<void> {
       expectedFlag: gt.knownAnomalies.length > 0,
       rows: s.transactions.length,
       durationMs: Date.now() - started,
-      tiers: out.attempts.map((a) => `${a.tier}${a.passed ? '✓' : '✗'}`).join(' → '),
+      tiers: out.attempts
+        .map((a) => `${a.tier}${a.skipped ? `⊘ (${a.skipped})` : a.passed ? '✓' : '✗'}`)
+        .join(' → '),
+      costUsd: out.costUsd,
+      agentTurns: out.attempts.reduce(
+        (n, a) => n + (typeof a.diagnostics.turns === 'number' ? a.diagnostics.turns : 0),
+        0,
+      ),
+      skipped: out.attempts.filter((a) => a.skipped).map((a) => `${a.tier} ${a.skipped}`),
     });
   }
 
@@ -136,7 +163,7 @@ function summarize(results: DocResult[]) {
   });
   return {
     generatedAt: new Date().toISOString(),
-    pipeline: 'T0 (deterministic)',
+    pipeline: ONLY_T0 ? 'T0 (deterministic)' : `T0 → T3 → T4 (LLM_MODE=${llmSettings.mode})`,
     documents: results.length,
     fieldAccuracy: { correct: all.filter((x) => x.ok).length, total: all.length },
     documentsFullyCorrect: results.filter((r) => r.scored.every((x) => x.ok)).length,
@@ -146,6 +173,9 @@ function summarize(results: DocResult[]) {
       flagged: results.filter((r) => r.expectedFlag && r.needsReview).length,
       falseFlags: results.filter((r) => !r.expectedFlag && r.needsReview).map((r) => r.file),
     },
+    llmCostUsd: results.reduce((a, r) => a + r.costUsd, 0),
+    agentTurns: results.reduce((a, r) => a + r.agentTurns, 0),
+    llmSkips: results.flatMap((r) => r.skipped.map((s) => `${r.file}: ${s}`)),
     byField,
     results,
   };
@@ -167,7 +197,21 @@ function toMarkdown(r: ReturnType<typeof summarize>): string {
     `| Documents passing all validators | ${r.passedValidation}/${r.documents} |`,
     `| Known anomalies flagged for review | ${r.anomalyFlags.flagged}/${r.anomalyFlags.expected} |`,
     `| Flagged without a known anomaly | ${r.anomalyFlags.falseFlags.length ? r.anomalyFlags.falseFlags.join(', ') : 'none'} |`,
+    `| LLM cost (USD, as recorded) | ${r.llmCostUsd.toFixed(4)} |`,
+    `| Agent turns (T4) | ${r.agentTurns} |`,
     '',
+  ];
+  if (r.llmSkips.length) {
+    lines.push(
+      `**LLM tiers skipped:** ${r.llmSkips.join('; ')}.`,
+      '',
+      'In replay mode a tier is skipped when no fixture was recorded for that exact request. Record',
+      'fixtures with `make eval-record` (needs `ANTHROPIC_API_KEY`). A skip never changes the result of',
+      'the earlier tiers.',
+      '',
+    );
+  }
+  lines.push(
     '## Accuracy by field',
     '',
     '| Field | Correct |',
@@ -178,16 +222,16 @@ function toMarkdown(r: ReturnType<typeof summarize>): string {
     '',
     '## By document',
     '',
-    '| Document | Fields | Rows | Tiers | Review | Time |',
-    '|---|---|---|---|---|---|',
+    '| Document | Fields | Rows | Tiers | Review | Cost | Time |',
+    '|---|---|---|---|---|---|---|',
     ...r.results.map(
       (d) =>
-        `| ${d.file} | ${d.scored.filter((x) => x.ok).length}/${d.scored.length} | ${d.rows} | ${d.tiers} | ${d.needsReview ? (d.expectedFlag ? 'yes (expected)' : '**yes**') : 'no'} | ${d.durationMs} ms |`,
+        `| ${d.file} | ${d.scored.filter((x) => x.ok).length}/${d.scored.length} | ${d.rows} | ${d.tiers} | ${d.needsReview ? (d.expectedFlag ? 'yes (expected)' : '**yes**') : 'no'} | ${d.costUsd ? `$${d.costUsd.toFixed(4)}` : '—'} | ${d.durationMs} ms |`,
     ),
     '',
     '## Mismatches and review reasons',
     '',
-  ];
+  );
   for (const d of r.results) {
     const wrong = d.scored.filter((x) => !x.ok);
     if (!wrong.length && !d.failedChecks.length) continue;

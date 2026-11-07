@@ -2,7 +2,7 @@
 DC := docker compose
 RUN := $(DC) run --rm tools
 
-.PHONY: up down logs ps sh install eval test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
+.PHONY: up down logs ps sh install eval eval-t0 eval-record test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
 
 up:            ## start the full stack (api, web, postgres, floci, mailpit)
 	$(DC) up -d --build
@@ -16,8 +16,12 @@ sh:            ## shell in a tools container
 	$(RUN) bash
 install:
 	$(DC) run --rm deps
-eval:          ## extraction eval over facturas/ vs eval/ground-truth → eval/reports/latest.md
+eval:          ## extraction eval (T0→T3→T4, LLM replayed from fixtures/llm) → eval/reports/latest.md
 	$(RUN) pnpm --filter @gowcredit/api eval
+eval-t0:       ## deterministic baseline only (no LLM tiers)
+	$(DC) run --rm -e EVAL_TIERS=T0 tools pnpm --filter @gowcredit/api eval
+eval-record:   ## call the API for requests without a fixture and record them (needs ANTHROPIC_API_KEY in .env)
+	$(DC) run --rm -e LLM_MODE=record tools pnpm --filter @gowcredit/api eval
 test:          ## unit tests (no services needed)
 	$(RUN) pnpm test
 test-integration: ## API + real Postgres (separate gowcredit_test db)

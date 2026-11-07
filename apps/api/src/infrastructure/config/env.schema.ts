@@ -13,6 +13,11 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // LLM tiers (ADR 0004). replay needs no key; record/live use ANTHROPIC_API_KEY (read by the SDK).
+  LLM_MODE: z.enum(['replay', 'record', 'live', 'off']).default('replay'),
+  LLM_FIXTURES_DIR: z.string().optional(),
+  LLM_MODEL_BASIC: z.string().optional(),
+  LLM_MODEL_BIG: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -26,6 +26,7 @@ x-node: &node
     AWS_ACCESS_KEY_ID: test
     AWS_SECRET_ACCESS_KEY: test
     SMTP_URL: smtp://mailpit:1025
+    LLM_MODE: ${LLM_MODE:-replay}
     DD_TRACE_ENABLED: ${DD_TRACE_ENABLED:-false}
     DD_AGENT_HOST: datadog-agent
     DD_ENV: local
