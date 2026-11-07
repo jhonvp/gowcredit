@@ -1,0 +1,27 @@
+# deps / build
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl.bak
+
+# dataset (provided by evaluators; not redistributed — see README)
+facturas/
+
+# misc
+.DS_Store
+*.log
+tmp/
