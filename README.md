@@ -110,6 +110,21 @@ make build-images                      # production images (api-runtime, web-run
 make clean                             # stop and DELETE volumes (db data, node_modules)
 ```
 
+## CI/CD and deploy
+
+- **CI** (`.github/workflows/ci.yml`) runs on every PR: lint, typecheck, unit and integration tests;
+  `terraform validate` plus `apply envs/local` on Floci; the stack with smoke, Playwright and Artillery;
+  and the production image builds.
+- **Deploy** (`.github/workflows/deploy.yml`): OIDC to AWS, then ECR, `terraform apply`, the migration
+  task, ECS rollout, and the web app to S3 + CloudFront. It is gated on the `AWS_DEPLOY_ROLE_ARN`
+  repository variable and was not run for the worksample.
+- **The plan** (architecture, first-time setup, rollback, gaps) is in [`docs/deploy.md`](docs/deploy.md).
+
+```bash
+make tf-validate   # terraform fmt + validate, local and prod
+make tf-local      # create the local AWS resources in Floci with the same module as prod
+```
+
 ## Dataset
 
 Put the development files in `facturas/` (git-ignored: they belong to the evaluators and are not
