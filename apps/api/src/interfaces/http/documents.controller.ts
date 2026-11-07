@@ -18,7 +18,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { CaseSummaryView, CaseView, SubmitDocumentResponse } from '@gowcredit/contracts';
+import {
+  type CaseSummaryView,
+  type CaseView,
+  type CopilotResponse,
+  CopilotRequestSchema,
+  type SubmitDocumentResponse,
+} from '@gowcredit/contracts';
+import { AnalystCopilotUseCase } from '../../application/use-cases/analyst-copilot.use-case';
 import {
   CASE_REPOSITORY_PORT,
   type CaseRepositoryPort,
@@ -59,7 +66,23 @@ export class DocumentsController {
     @Inject(CASE_REPOSITORY_PORT) private readonly cases: CaseRepositoryPort,
     @Inject(CLARIFICATION_REPOSITORY_PORT) private readonly requests: ClarificationRepositoryPort,
     @Inject(OBJECT_STORAGE_PORT) private readonly storage: ObjectStoragePort,
+    private readonly copilot: AnalystCopilotUseCase,
   ) {}
+
+  /** Analyst copilot (ADR 0010): read-only answers about one case's decision and provenance. */
+  @Post('cases/:id/copilot')
+  @Roles('analyst')
+  @HttpCode(200)
+  async ask(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ): Promise<CopilotResponse> {
+    const parsed = CopilotRequestSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException('question is required (max 1000 chars)');
+    const out = await this.copilot.execute(id, parsed.data.question);
+    if (!out) throw new NotFoundException('case not found');
+    return out;
+  }
 
   /** The original file, for the analyst's side-by-side view. Same access rule as the case. */
   @Get('documents/:id/file')

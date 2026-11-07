@@ -244,3 +244,17 @@ export const ClarificationViewSchema = z.object({
   answeredAt: z.string().nullable(),
 });
 export type ClarificationView = z.infer<typeof ClarificationViewSchema>;
+
+// ---- Analyst copilot (ADR 0010) ----
+export const CopilotRequestSchema = z.object({ question: z.string().trim().min(1).max(1000) });
+export type CopilotRequest = z.infer<typeof CopilotRequestSchema>;
+
+export const CopilotResponseSchema = z.object({
+  answer: z.string(),
+  citations: z.array(z.string()),
+  /** agent = Haiku with read-only tools; trace = deterministic summary when no LLM is available. */
+  by: z.enum(['agent', 'trace']),
+  turns: z.number().int(),
+  costUsd: z.number(),
+});
+export type CopilotResponse = z.infer<typeof CopilotResponseSchema>;

@@ -18,6 +18,7 @@ import {
   type SecretTokenPort,
 } from '../../application/ports/clarification.ports';
 import { CLOCK_PORT, type ClockPort } from '../../application/ports/clock.port';
+import { AGENT_PORT, type AgentPort } from '../../application/ports/agent.port';
 import { LLM_PORT, type LlmPort } from '../../application/ports/llm.port';
 import {
   CFDI_PARSER_PORT,
@@ -33,6 +34,7 @@ import {
   OBJECT_STORAGE_PORT,
   type ObjectStoragePort,
 } from '../../application/ports/object-storage.port';
+import { AnalystCopilotUseCase } from '../../application/use-cases/analyst-copilot.use-case';
 import { AnswerClarificationUseCase } from '../../application/use-cases/answer-clarification.use-case';
 import { DecideCaseUseCase } from '../../application/use-cases/decide-case.use-case';
 import { RequestClarificationUseCase } from '../../application/use-cases/request-clarification.use-case';
@@ -190,6 +192,16 @@ import { S3ObjectStorage } from '../storage/s3-object-storage';
     },
     MagicLinkStrategy,
     {
+      provide: AnalystCopilotUseCase,
+      inject: [CASE_REPOSITORY_PORT, CLARIFICATION_REPOSITORY_PORT, AGENT_PORT, LOGGER_PORT],
+      useFactory: (
+        cases: CaseRepositoryPort,
+        requests: ClarificationRepositoryPort,
+        agent: AgentPort,
+        logger: LoggerPort,
+      ) => new AnalystCopilotUseCase(cases, requests, agent, logger),
+    },
+    {
       provide: ProcessDocumentUseCase,
       inject: [
         CASE_REPOSITORY_PORT,
@@ -210,6 +222,7 @@ import { S3ObjectStorage } from '../storage/s3-object-storage';
     },
   ],
   exports: [
+    AnalystCopilotUseCase,
     AnswerClarificationUseCase,
     CLARIFICATION_REPOSITORY_PORT,
     SubmitDocumentUseCase,
