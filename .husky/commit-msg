@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Semantic commits (CLAUDE.md). Runs commitlint inside Docker: the host only needs Docker.
+docker compose run --rm --no-deps -T tools pnpm exec commitlint --edit "$1"
