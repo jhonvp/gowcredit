@@ -7,7 +7,7 @@ import type { BankStatement } from '../../../domain/statement/bank-statement';
 import { detectBank } from './bank';
 import { findPeriod, type Period } from './dates';
 import { detectCurrency, findLabeledAmount } from './summary';
-import { parseTransactions } from './table';
+import { type LabeledLine, parseTransactions } from './table';
 import { QUALITY_THRESHOLD, repairPage, type RepairedPage } from './text-quality';
 
 /** Tier 0: deterministic extraction from the PDF text layer (ADR 0002). */
@@ -15,6 +15,14 @@ export class T0StatementExtractor implements StatementExtractorPort {
   readonly tier = 'T0' as const;
 
   async extract(text: DocumentText): Promise<StatementExtraction> {
+    return this.extractWithLabels(text).extraction;
+  }
+
+  /** Also returns the role of every table line: training labels for T2 (ADR 0003). */
+  extractWithLabels(text: DocumentText): {
+    extraction: StatementExtraction;
+    labels: LabeledLine[];
+  } {
     const pages = text.pages.map(repairPage);
     const period = findFirstPeriod(pages);
     const opening = findLabeledAmount(pages, 'opening');
@@ -24,7 +32,7 @@ export class T0StatementExtractor implements StatementExtractorPort {
 
     const table = period
       ? parseTransactions(pages, period, opening?.cents ?? null)
-      : { transactions: [], openingFromTable: null, headersFound: 0 };
+      : { transactions: [], openingFromTable: null, headersFound: 0, labels: [] };
 
     const statement: BankStatement = {
       summary: {
@@ -44,7 +52,7 @@ export class T0StatementExtractor implements StatementExtractorPort {
     };
 
     const sideBy = (k: string) => table.transactions.filter((t) => t.sideBy === k).length;
-    return {
+    const extraction: StatementExtraction = {
       statement,
       diagnostics: {
         pages: pages.length,
@@ -58,6 +66,7 @@ export class T0StatementExtractor implements StatementExtractorPort {
         closingLabel: closing?.label ?? null,
       },
     };
+    return { extraction, labels: table.labels };
   }
 }
 
