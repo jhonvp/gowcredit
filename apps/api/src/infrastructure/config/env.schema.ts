@@ -23,6 +23,13 @@ export const envSchema = z.object({
     .transform((v) => v === 'true'),
   /** Seconds a received job stays invisible to other workers; must exceed the slowest extraction. */
   SQS_VISIBILITY_TIMEOUT: z.coerce.number().int().positive().default(300),
+  // Eligibility (ADR 0007). Fixed evaluation date for reproducible runs; default is today.
+  ELIGIBILITY_AS_OF: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  /** C-K6 stub: 'active' assumes the CFDI is not cancelled; 'unknown' makes the owner confirm. */
+  SAT_STATUS_MODE: z.enum(['active', 'unknown']).default('active'),
   // LLM tiers (ADR 0004). replay needs no key; record/live use ANTHROPIC_API_KEY (read by the SDK).
   LLM_MODE: z.enum(['replay', 'record', 'live', 'off']).default('replay'),
   LLM_FIXTURES_DIR: z.string().optional(),

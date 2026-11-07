@@ -17,6 +17,13 @@ export interface IdGenerator {
 /** 20 MB: the largest dev statement is ~2 MB; the cap keeps the worker's memory bounded. */
 export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 
+export class CaseNotFoundError extends Error {
+  constructor(caseId: string) {
+    super(`Case ${caseId} not found`);
+    this.name = 'CaseNotFoundError';
+  }
+}
+
 export class UnsupportedDocumentError extends Error {
   constructor(message: string) {
     super(message);
@@ -47,28 +54,33 @@ export class SubmitDocumentUseCase {
     private readonly logger: LoggerPort,
   ) {}
 
-  async execute(file: UploadedFile): Promise<CaseRecord> {
+  /** Creates a case, or adds the document to `caseId` (a statement and an invoice are decided together). */
+  async execute(file: UploadedFile, caseId?: string): Promise<CaseRecord> {
     if (file.bytes.byteLength === 0) throw new UnsupportedDocumentError('Empty file');
     if (file.bytes.byteLength > MAX_DOCUMENT_BYTES)
       throw new UnsupportedDocumentError(`File larger than ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB`);
     const kind = sniffKind(file.bytes);
     if (!kind) throw new UnsupportedDocumentError('Only PDF statements and CFDI XML are accepted');
 
-    const caseId = this.ids.uuid();
+    if (caseId && !(await this.cases.findCase(caseId))) throw new CaseNotFoundError(caseId);
+    const targetCase = caseId ?? this.ids.uuid();
     const documentId = this.ids.uuid();
-    const storageKey = `cases/${caseId}/${documentId}.${kind}`;
+    const storageKey = `cases/${targetCase}/${documentId}.${kind}`;
     const mimeType = kind === 'pdf' ? 'application/pdf' : 'application/xml';
     await this.storage.put(storageKey, file.bytes, mimeType);
-    const created = await this.cases.createCase(caseId, {
+    const document = {
       id: documentId,
       originalName: file.originalName.slice(0, 255),
       mimeType,
       sha256: file.sha256,
       storageKey,
-    });
-    await this.queue.send({ type: 'extract-document', caseId, documentId });
+    };
+    if (caseId) await this.cases.addDocument(caseId, document);
+    else await this.cases.createCase(targetCase, document);
+    const created = (await this.cases.findCase(targetCase)) as CaseRecord;
+    await this.queue.send({ type: 'extract-document', caseId: targetCase, documentId });
     this.logger.info('document received', {
-      caseId,
+      caseId: targetCase,
       documentId,
       kind,
       bytes: file.bytes.byteLength,

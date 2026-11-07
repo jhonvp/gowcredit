@@ -36,6 +36,12 @@ export class AppConfig {
       visibilityTimeout: this.config.get('SQS_VISIBILITY_TIMEOUT', { infer: true }),
     };
   }
+  get eligibility(): { asOf: string | null; satStatusMode: 'active' | 'unknown' } {
+    return {
+      asOf: this.config.get('ELIGIBILITY_AS_OF', { infer: true }) ?? null,
+      satStatusMode: this.config.get('SAT_STATUS_MODE', { infer: true }),
+    };
+  }
   get llm(): LlmSettings {
     return {
       mode: this.config.get('LLM_MODE', { infer: true }),
