@@ -38,15 +38,32 @@ the earlier tiers.
 
 | Document | Fields | Rows | Tiers | Review | Cost | Time |
 |---|---|---|---|---|---|---|
-| EDC_01_Inbursa_2025-01.pdf | 9/9 | 37 | T0✓ | no | — | 84 ms |
-| EDC_02_Hey_2025-04.pdf | 9/9 | 282 | T0✓ | no | — | 255 ms |
-| EDC_03_Fondeadora_2025-10.pdf | 9/9 | 41 | T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing) | yes (expected) | — | 35 ms |
+| EDC_01_Inbursa_2025-01.pdf | 9/9 | 37 | T0✓ | no | — | 162 ms |
+| EDC_02_Hey_2025-04.pdf | 9/9 | 282 | T0✓ | no | — | 317 ms |
+| EDC_03_Fondeadora_2025-10.pdf | 9/9 | 41 | T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing) | yes (expected) | — | 39 ms |
 | EDC_04_Banamex_2026-02.pdf | 9/9 | 93 | T0✓ | no | — | 137 ms |
-| EDC_05_BBVA_2025-09.pdf | 9/9 | 161 | T0✓ | no | — | 66 ms |
-| EDC_06_MercadoPago_2026-06a09.pdf | 9/9 | 217 | T0✓ | no | — | 39 ms |
-| EDC_07_Santander_2025-04.pdf | 9/9 | 306 | T0✓ | no | — | 128 ms |
-| EDC_08_Nu_2025-07.pdf | 6/8 | 468 | T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing) | yes (expected) | — | 197 ms |
-| EDC_09_HSBC_2026-03.pdf | 9/9 | 44 | T0✓ | no | — | 61 ms |
+| EDC_05_BBVA_2025-09.pdf | 9/9 | 161 | T0✓ | no | — | 67 ms |
+| EDC_06_MercadoPago_2026-06a09.pdf | 9/9 | 217 | T0✓ | no | — | 46 ms |
+| EDC_07_Santander_2025-04.pdf | 9/9 | 306 | T0✓ | no | — | 138 ms |
+| EDC_08_Nu_2025-07.pdf | 6/8 | 468 | T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing) | yes (expected) | — | 183 ms |
+| EDC_09_HSBC_2026-03.pdf | 9/9 | 44 | T0✓ | no | — | 72 ms |
+
+## Eligibility (policy v1)
+
+Statement-only decisions. `asOf = period end + 5` exercises the financial rules; with `asOf = today`
+most dev statements are older than 90 days and the policy asks for a recent one (docs/eligibility-policy.md).
+
+| Document | asOf = period end + 5 | asOf = today |
+|---|---|---|
+| EDC_01_Inbursa_2025-01.pdf | QUALIFIES (83) | NEEDS_INFO (83) ← RECENT_STATEMENT |
+| EDC_02_Hey_2025-04.pdf | QUALIFIES (70) | NEEDS_INFO (70) ← RECENT_STATEMENT |
+| EDC_03_Fondeadora_2025-10.pdf | NEEDS_INFO ← STATEMENT_UNREADABLE | NEEDS_INFO ← STATEMENT_UNREADABLE |
+| EDC_04_Banamex_2026-02.pdf | DOES_NOT_QUALIFY (58) | NEEDS_INFO (58) ← RECENT_STATEMENT |
+| EDC_05_BBVA_2025-09.pdf | QUALIFIES (75) | NEEDS_INFO (75) ← RECENT_STATEMENT |
+| EDC_06_MercadoPago_2026-06a09.pdf | QUALIFIES (70) | QUALIFIES (70) |
+| EDC_07_Santander_2025-04.pdf | QUALIFIES (60) | NEEDS_INFO (60) ← RECENT_STATEMENT |
+| EDC_08_Nu_2025-07.pdf | NEEDS_INFO ← STATEMENT_UNREADABLE | NEEDS_INFO ← STATEMENT_UNREADABLE |
+| EDC_09_HSBC_2026-03.pdf | QUALIFIES (68) | NEEDS_INFO (68) ← RECENT_STATEMENT |
 
 ## Mismatches and review reasons
 

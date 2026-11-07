@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T19:31:56.413Z",
+  "generatedAt": "2026-11-07T19:46:07.757Z",
   "pipeline": "T0 → T1 → T2 → T3 → T4 (LLM_MODE=replay)",
   "documents": 9,
   "fieldAccuracy": {
@@ -134,11 +134,15 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 37,
-      "durationMs": 84,
+      "durationMs": 162,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "QUALIFIES (83)",
+        "today": "NEEDS_INFO (83) ← RECENT_STATEMENT"
+      }
     },
     {
       "file": "EDC_02_Hey_2025-04.pdf",
@@ -203,11 +207,15 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 282,
-      "durationMs": 255,
+      "durationMs": 317,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "QUALIFIES (70)",
+        "today": "NEEDS_INFO (70) ← RECENT_STATEMENT"
+      }
     },
     {
       "file": "EDC_03_Fondeadora_2025-10.pdf",
@@ -274,7 +282,7 @@
       ],
       "expectedFlag": true,
       "rows": 41,
-      "durationMs": 35,
+      "durationMs": 39,
       "tiers": "T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing)",
       "costUsd": 0,
       "agentTurns": 0,
@@ -282,7 +290,11 @@
         "T1 no-pages-need-ocr",
         "T3 fixture-missing",
         "T4 fixture-missing"
-      ]
+      ],
+      "decision": {
+        "atPeriodEnd": "NEEDS_INFO ← STATEMENT_UNREADABLE",
+        "today": "NEEDS_INFO ← STATEMENT_UNREADABLE"
+      }
     },
     {
       "file": "EDC_04_Banamex_2026-02.pdf",
@@ -351,7 +363,11 @@
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "DOES_NOT_QUALIFY (58)",
+        "today": "NEEDS_INFO (58) ← RECENT_STATEMENT"
+      }
     },
     {
       "file": "EDC_05_BBVA_2025-09.pdf",
@@ -416,11 +432,15 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 161,
-      "durationMs": 66,
+      "durationMs": 67,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "QUALIFIES (75)",
+        "today": "NEEDS_INFO (75) ← RECENT_STATEMENT"
+      }
     },
     {
       "file": "EDC_06_MercadoPago_2026-06a09.pdf",
@@ -485,11 +505,15 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 217,
-      "durationMs": 39,
+      "durationMs": 46,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "QUALIFIES (70)",
+        "today": "QUALIFIES (70)"
+      }
     },
     {
       "file": "EDC_07_Santander_2025-04.pdf",
@@ -554,11 +578,15 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 306,
-      "durationMs": 128,
+      "durationMs": 138,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "QUALIFIES (60)",
+        "today": "NEEDS_INFO (60) ← RECENT_STATEMENT"
+      }
     },
     {
       "file": "EDC_08_Nu_2025-07.pdf",
@@ -619,7 +647,7 @@
       ],
       "expectedFlag": true,
       "rows": 468,
-      "durationMs": 197,
+      "durationMs": 183,
       "tiers": "T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing)",
       "costUsd": 0,
       "agentTurns": 0,
@@ -627,7 +655,11 @@
         "T1 no-pages-need-ocr",
         "T3 fixture-missing",
         "T4 fixture-missing"
-      ]
+      ],
+      "decision": {
+        "atPeriodEnd": "NEEDS_INFO ← STATEMENT_UNREADABLE",
+        "today": "NEEDS_INFO ← STATEMENT_UNREADABLE"
+      }
     },
     {
       "file": "EDC_09_HSBC_2026-03.pdf",
@@ -692,11 +724,15 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 44,
-      "durationMs": 61,
+      "durationMs": 72,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
-      "skipped": []
+      "skipped": [],
+      "decision": {
+        "atPeriodEnd": "QUALIFIES (68)",
+        "today": "NEEDS_INFO (68) ← RECENT_STATEMENT"
+      }
     }
   ]
 }

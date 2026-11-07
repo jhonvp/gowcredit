@@ -9,6 +9,7 @@ import { ToolLoopAgent } from '../src/application/agents/tool-loop-agent';
 import type { LoggerPort } from '../src/application/ports/logger.port';
 import type { StatementExtractorPort } from '../src/application/ports/statement-extractor.port';
 import { ExtractBankStatementUseCase } from '../src/application/use-cases/extract-bank-statement.use-case';
+import { decide, type Outcome } from '../src/domain/eligibility/engine';
 import { formatMxn, toCents } from '../src/domain/shared/money';
 import { totalCredits, totalDebits } from '../src/domain/statement/bank-statement';
 import { T3LlmStatementExtractor } from '../src/infrastructure/extraction/llm/t3-llm-statement-extractor';
@@ -18,6 +19,7 @@ import { TesseractOcrAdapter } from '../src/infrastructure/extraction/ocr/tesser
 import { PopplerTextAdapter } from '../src/infrastructure/extraction/pdf/poppler-text.adapter';
 import { T0StatementExtractor } from '../src/infrastructure/extraction/t0/t0-statement-extractor';
 import { T2ClassifierStatementExtractor } from '../src/infrastructure/extraction/t2/t2-classifier-statement-extractor';
+import { YamlPolicyAdapter } from '../src/infrastructure/eligibility/yaml-policy.adapter';
 import { createLlm, llmSettingsFromEnv } from '../src/infrastructure/llm/create-llm';
 
 const ROOT = resolve(__dirname, '../../..');
@@ -75,7 +77,16 @@ interface DocResult {
   costUsd: number;
   agentTurns: number;
   skipped: string[];
+  /** Eligibility with asOf = period end + 5 days (exercises the financial rules) and asOf = today. */
+  decision: { atPeriodEnd: string; today: string };
 }
+
+const POLICY = new YamlPolicyAdapter().current();
+const TODAY = new Date().toISOString().slice(0, 10);
+const plus = (d: string, days: number) =>
+  new Date(Date.parse(`${d}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+const label = (o: Outcome, score: number | null, missing: string[]) =>
+  `${o}${score !== null ? ` (${score})` : ''}${missing.length ? ` ← ${missing.join(', ')}` : ''}`;
 
 function buildTiers(): StatementExtractorPort[] {
   if (ONLY_T0) return [new T0StatementExtractor()];
@@ -150,7 +161,23 @@ async function main(): Promise<void> {
         0,
       ),
       skipped: out.attempts.filter((a) => a.skipped).map((a) => `${a.tier} ${a.skipped}`),
+      decision: {
+        atPeriodEnd: decideAt(s.summary.periodEnd ? plus(s.summary.periodEnd, 5) : TODAY),
+        today: decideAt(TODAY),
+      },
     });
+    function decideAt(asOf: string): string {
+      const d = decide({
+        asOf,
+        policy: POLICY,
+        statement: { statement: s, validation: out.validation },
+      });
+      return label(
+        d.outcome,
+        d.score,
+        d.missing.map((m) => m.code),
+      );
+    }
   }
 
   const report = summarize(results);
@@ -235,6 +262,15 @@ function toMarkdown(r: ReturnType<typeof summarize>): string {
       (d) =>
         `| ${d.file} | ${d.scored.filter((x) => x.ok).length}/${d.scored.length} | ${d.rows} | ${d.tiers} | ${d.needsReview ? (d.expectedFlag ? 'yes (expected)' : '**yes**') : 'no'} | ${d.costUsd ? `$${d.costUsd.toFixed(4)}` : '—'} | ${d.durationMs} ms |`,
     ),
+    '',
+    '## Eligibility (policy ' + POLICY.version + ')',
+    '',
+    'Statement-only decisions. `asOf = period end + 5` exercises the financial rules; with `asOf = today`',
+    'most dev statements are older than 90 days and the policy asks for a recent one (docs/eligibility-policy.md).',
+    '',
+    '| Document | asOf = period end + 5 | asOf = today |',
+    '|---|---|---|',
+    ...r.results.map((d) => `| ${d.file} | ${d.decision.atPeriodEnd} | ${d.decision.today} |`),
     '',
     '## Mismatches and review reasons',
     '',
