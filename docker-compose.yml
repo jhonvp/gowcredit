@@ -27,6 +27,9 @@ x-node: &node
     AWS_SECRET_ACCESS_KEY: test
     SMTP_URL: smtp://mailpit:1025
     LLM_MODE: ${LLM_MODE:-replay}
+    S3_BUCKET: gowcredit-documents-local
+    SQS_QUEUE_NAME: gowcredit-extract-local
+    AWS_BOOTSTRAP: 'true'
     DD_TRACE_ENABLED: ${DD_TRACE_ENABLED:-false}
     DD_AGENT_HOST: datadog-agent
     DD_ENV: local
@@ -86,6 +89,15 @@ services:
       floci: { condition: service_started }
       mailpit: { condition: service_started }
 
+  # Extraction worker: SQS (Floci) → cascade T0→T3→T4 → Postgres. Same image as the API in AWS.
+  worker:
+    <<: *node
+    command: pnpm --filter @gowcredit/api dev:worker
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      contracts: { condition: service_started }
+      floci: { condition: service_started }
+
   web:
     <<: *node
     command: pnpm --filter @gowcredit/web dev
@@ -130,7 +142,7 @@ services:
     profiles: [test]
     working_dir: /scripts
     volumes: [./tests/load:/scripts]
-    command: run --target ${LOAD_TARGET:-http://api:3000} health.yml
+    command: run --target ${LOAD_TARGET:-http://api:3000} ${LOAD_SCRIPT:-api.yml}
 
   terraform:
     image: hashicorp/terraform:1.14
