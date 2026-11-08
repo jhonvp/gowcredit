@@ -139,6 +139,19 @@ describe('clarification loop (integration)', () => {
     const decided = (await http().get(`/api/cases/${caseId}`).set(analyst).expect(200)).body;
     expect(decided.decision.outcome).toBe('QUALIFIES');
     expect(decided.decision.suggestedAdvance).toBeGreaterThan(0);
+    // Copilot (replay mode, no fixture → deterministic trace summary); analysts only.
+    const copilot = await http()
+      .post(`/api/cases/${caseId}/copilot`)
+      .set(analyst)
+      .send({ question: '¿Por qué califica?' })
+      .expect(200);
+    expect(copilot.body).toMatchObject({ by: 'trace' });
+    expect(copilot.body.answer).toContain('QUALIFIES');
+    await http()
+      .post(`/api/cases/${caseId}/copilot`)
+      .set(supplier)
+      .send({ question: 'x' })
+      .expect(403);
     expect(decided.clarifications).toMatchObject([
       {
         round: 1,

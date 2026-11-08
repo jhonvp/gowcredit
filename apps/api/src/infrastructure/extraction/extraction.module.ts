@@ -57,6 +57,6 @@ import { T2ClassifierStatementExtractor } from './t2/t2-classifier-statement-ext
         new ExtractBankStatementUseCase(text, tiers, logger),
     },
   ],
-  exports: [ExtractBankStatementUseCase, LLM_PORT],
+  exports: [ExtractBankStatementUseCase, LLM_PORT, AGENT_PORT],
 })
 export class ExtractionModule {}

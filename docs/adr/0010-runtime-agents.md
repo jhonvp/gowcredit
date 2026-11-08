@@ -28,3 +28,15 @@ images.
 - Agent outputs are proposals; the domain validates and applies them.
 - Tool calls are logged with Datadog spans per turn.
 - The eval reports turns and cost per agent.
+
+**Implementation status (2026-11-07).**
+
+| Agent                | Implemented as                                                                      | Fallback without an LLM                          |
+| -------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
+| T4 extraction repair | `ToolLoopAgent` on Opus with 8 edit/read/validate tools (8 turns, 1 USD)            | tier reported as skipped; earlier candidate kept |
+| T5 clarification     | two bounded single calls on Haiku: write the questions, normalize free-text answers | Spanish templates; free text rejected with 422   |
+| Analyst copilot      | `ToolLoopAgent` on Haiku with 4 read-only tools + `answer` (4 turns, 0.05 USD)      | deterministic summary of the decision trace      |
+
+Every agent call goes through `LlmPort`, so `LLM_MODE=replay` covers them, and none of them can
+change data: T4's edits are validated by the domain, T5's answers go through `applyAnswers`, and the
+copilot has no write tools.

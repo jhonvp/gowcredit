@@ -9,6 +9,7 @@ import {
   ExtractionPanel,
   StatusPill,
 } from '../components/case-parts';
+import { CopilotPanel } from '../components/CopilotPanel';
 import { isInFlight, TIER } from '../format';
 import { Shell } from './Shell';
 import { CaseTable } from './Supplier';
@@ -108,6 +109,7 @@ export function AnalystCase() {
             </div>
             <div>{doc && <ExtractionPanel doc={doc} analyst />}</div>
           </div>
+          <CopilotPanel token={token} caseId={c.id} />
           <ClarificationHistory items={c.clarifications} />
         </>
       )}

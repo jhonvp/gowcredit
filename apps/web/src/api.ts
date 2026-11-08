@@ -3,6 +3,8 @@ import {
   CaseSummaryViewSchema,
   type CaseView,
   CaseViewSchema,
+  type CopilotResponse,
+  CopilotResponseSchema,
   type LoginResponse,
   LoginResponseSchema,
   type OwnerAnswerResponse,
@@ -73,6 +75,9 @@ export const api = {
     const path = caseId ? `/api/cases/${caseId}/documents` : '/api/documents';
     return call(path, SubmitDocumentResponseSchema, { method: 'POST', body: form, token });
   },
+
+  copilot: (token: string, caseId: string, question: string): Promise<CopilotResponse> =>
+    call(`/api/cases/${caseId}/copilot`, CopilotResponseSchema, { ...json({ question }), token }),
 
   /** Authenticated download as an object URL (the browser's PDF viewer shows it). */
   async documentUrl(token: string, documentId: string): Promise<string> {
