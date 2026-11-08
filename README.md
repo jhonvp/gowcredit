@@ -41,10 +41,16 @@ make smoke     # checks every service
 
 ## Try it: upload a statement
 
+Seed users (created by `make up`): `supplier@demo.mx`, `supplier2@demo.mx`, `analyst@demo.mx`, password
+`demo1234`, and the integration key `gk_local_demo_key_0001` (header `X-API-Key`).
+
 ```bash
-curl -F "file=@facturas/EDC_02_Hey_2025-04.pdf;type=application/pdf" localhost:3000/api/documents
+TOKEN=$(curl -s localhost:3000/api/auth/login -H 'content-type: application/json' \
+  -d '{"email":"supplier@demo.mx","password":"demo1234"}' | jq -r .accessToken)
+curl -H "Authorization: Bearer $TOKEN" -F "file=@facturas/EDC_02_Hey_2025-04.pdf;type=application/pdf" \
+  -F ownerEmail=owner@demo.mx localhost:3000/api/documents
 # → 202 {"caseId": "...", "documentId": "...", "status": "RECEIVED"}
-curl localhost:3000/api/cases/<caseId>
+curl -H "Authorization: Bearer $TOKEN" localhost:3000/api/cases/<caseId>
 # → status EXTRACTED (or AWAITING_OWNER when the validators fail), with the extraction,
 #   the checks and every tier attempt
 ```
@@ -55,8 +61,9 @@ cascade, writes the result to Postgres and runs the eligibility policy (`make lo
 Add an invoice to the same case so both are decided together (synthetic CFDIs in `samples/cfdi/`):
 
 ```bash
-curl -F "file=@samples/cfdi/factura-ppd-anchor.xml;type=application/xml" localhost:3000/api/cases/<caseId>/documents
-curl localhost:3000/api/cases/<caseId>     # decision: outcome, score, rules, missing info, suggested advance
+curl -H "Authorization: Bearer $TOKEN" -F "file=@samples/cfdi/factura-ppd-anchor.xml;type=application/xml" \
+  localhost:3000/api/cases/<caseId>/documents
+curl -H "Authorization: Bearer $TOKEN" localhost:3000/api/cases/<caseId>     # decision: outcome, score, rules, missing info, suggested advance
 ```
 
 ## Extraction eval and LLM modes

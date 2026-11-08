@@ -2,7 +2,7 @@
 DC := docker compose
 RUN := $(DC) run --rm tools
 
-.PHONY: up down logs ps sh install eval eval-t0 eval-record train-classifier test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
+.PHONY: up down logs ps sh install seed eval eval-t0 eval-record train-classifier test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
 
 up:            ## start the full stack (api, web, postgres, floci, mailpit)
 	$(DC) up -d --build
@@ -45,6 +45,8 @@ typecheck:
 	$(RUN) sh -c "pnpm --filter @gowcredit/contracts build && pnpm typecheck"
 format:
 	$(RUN) pnpm format
+seed:          ## demo users (supplier@demo.mx, supplier2@demo.mx, analyst@demo.mx / demo1234) + API key
+	$(RUN) pnpm --filter @gowcredit/api seed
 migrate:
 	$(DC) run --rm migrate
 migration-generate: ## make migration-generate name=AddSomething

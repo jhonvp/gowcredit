@@ -42,6 +42,10 @@ export interface DecisionRecord extends Decision {
 export interface CaseRecord {
   id: string;
   status: CaseStatus;
+  /** Supplier user the case belongs to (null for cases created before auth). */
+  supplierId: string | null;
+  /** Email of the document owner, who answers clarification questions. */
+  ownerEmail: string | null;
   /** Facts confirmed by the owner (clarification loop) or external checks. */
   facts: DecisionFacts;
   /** Latest eligibility decision, if any. */
@@ -61,8 +65,25 @@ export interface NewDocument {
   storageKey: string;
 }
 
+export interface CaseSummary {
+  id: string;
+  status: CaseStatus;
+  supplierId: string | null;
+  documentCount: number;
+  outcome: Decision['outcome'] | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NewCase {
+  supplierId: string | null;
+  ownerEmail: string | null;
+}
+
 export interface CaseRepositoryPort {
-  createCase(caseId: string, document: NewDocument): Promise<CaseRecord>;
+  createCase(caseId: string, document: NewDocument, owner: NewCase): Promise<CaseRecord>;
+  /** Most recent first; `supplierId` restricts to one supplier's cases. */
+  listCases(filter: { supplierId?: string; limit: number }): Promise<CaseSummary[]>;
   addDocument(caseId: string, document: NewDocument): Promise<void>;
   findCase(caseId: string): Promise<CaseRecord | null>;
   findDocument(documentId: string): Promise<DocumentRecord | null>;

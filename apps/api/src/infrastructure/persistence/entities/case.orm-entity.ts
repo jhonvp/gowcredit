@@ -25,6 +25,12 @@ export class CaseOrmEntity {
   @Column({ type: 'jsonb', default: {} })
   facts: DecisionFacts;
 
+  @Column({ name: 'supplier_id', type: 'uuid', nullable: true })
+  supplierId: string | null;
+
+  @Column({ name: 'owner_email', type: 'varchar', length: 254, nullable: true })
+  ownerEmail: string | null;
+
   @OneToMany(() => DocumentOrmEntity, (d) => d.case)
   documents: DocumentOrmEntity[];
 

@@ -27,6 +27,7 @@ x-node: &node
     AWS_SECRET_ACCESS_KEY: test
     SMTP_URL: smtp://mailpit:1025
     LLM_MODE: ${LLM_MODE:-replay}
+    JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me-0123456789}
     S3_BUCKET: gowcredit-documents-local
     SQS_QUEUE_NAME: gowcredit-extract-local
     AWS_BOOTSTRAP: 'true'
@@ -74,7 +75,7 @@ services:
 
   migrate:
     <<: *node
-    command: pnpm --filter @gowcredit/api migration:run
+    command: sh -c "pnpm --filter @gowcredit/api migration:run && pnpm --filter @gowcredit/api seed"
     depends_on:
       deps: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }

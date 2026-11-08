@@ -23,6 +23,12 @@ export class AppConfig {
   get dbLogging(): boolean {
     return this.config.get('DB_LOGGING', { infer: true });
   }
+  get auth(): { jwtSecret: string; jwtTtlSeconds: number } {
+    return {
+      jwtSecret: this.config.get('JWT_SECRET', { infer: true }),
+      jwtTtlSeconds: this.config.get('JWT_TTL_SECONDS', { infer: true }),
+    };
+  }
   get documents(): {
     bucket: string;
     queueName: string;

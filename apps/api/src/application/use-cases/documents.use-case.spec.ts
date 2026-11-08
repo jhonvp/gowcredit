@@ -58,11 +58,16 @@ class InMemoryJobQueue implements JobQueuePort {
 /** In-memory repository that enforces the domain transition rules like the SQL one. */
 class FakeCases implements CaseRepositoryPort {
   readonly cases = new Map<string, CaseRecord>();
-  async createCase(caseId: string, d: Parameters<CaseRepositoryPort['createCase']>[1]) {
+  async createCase(
+    caseId: string,
+    d: Parameters<CaseRepositoryPort['createCase']>[1],
+    owner: Parameters<CaseRepositoryPort['createCase']>[2],
+  ) {
     const now = new Date();
     const c: CaseRecord = {
       id: caseId,
       status: 'RECEIVED',
+      ...owner,
       facts: {},
       decision: null,
       createdAt: now,
@@ -72,6 +77,9 @@ class FakeCases implements CaseRepositoryPort {
     };
     this.cases.set(caseId, c);
     return structuredClone(c);
+  }
+  async listCases() {
+    return [];
   }
   async addDocument(caseId: string, d: Parameters<CaseRepositoryPort['addDocument']>[1]) {
     this.cases.get(caseId)?.documents.push({ ...d, caseId, docType: null, createdAt: new Date() });
@@ -184,7 +192,7 @@ describe('sniffKind', () => {
 describe('SubmitDocumentUseCase', () => {
   it('stores the file, creates the case and queues extraction', async () => {
     const { storage, queue, submit } = setup(async () => outcome(false));
-    const created = await submit.execute(file());
+    const created = await submit.execute(file(), { supplierId: 's1' });
     expect(created.status).toBe('RECEIVED');
     const doc = created.documents[0];
     expect(doc?.storageKey).toBe(`cases/${created.id}/${doc?.id}.pdf`);
@@ -196,10 +204,12 @@ describe('SubmitDocumentUseCase', () => {
 
   it('rejects empty and non-document files without side effects', async () => {
     const { storage, queue, submit } = setup(async () => outcome(false));
-    await expect(submit.execute(file(new Uint8Array()))).rejects.toBeInstanceOf(
-      UnsupportedDocumentError,
-    );
-    await expect(submit.execute(file(new TextEncoder().encode('hello')))).rejects.toThrow(/PDF/);
+    await expect(
+      submit.execute(file(new Uint8Array()), { supplierId: 's1' }),
+    ).rejects.toBeInstanceOf(UnsupportedDocumentError);
+    await expect(
+      submit.execute(file(new TextEncoder().encode('hello')), { supplierId: 's1' }),
+    ).rejects.toThrow(/PDF/);
     expect(storage.objects.size + queue.pending.size).toBe(0);
   });
 });
@@ -208,7 +218,7 @@ describe('ProcessDocumentUseCase', () => {
   it('extracts a statement, saves it, marks the case EXTRACTED and runs the decision', async () => {
     for (const review of [false, true]) {
       const { queue, cases, submit, process, decideCase } = setup(async () => outcome(review));
-      const c = await submit.execute(file());
+      const c = await submit.execute(file(), { supplierId: 's1' });
       const [job] = await queue.receive(1);
       expect(await process.execute(job!.job)).toBe('processed');
       const saved = await cases.findCase(c.id);
@@ -223,7 +233,7 @@ describe('ProcessDocumentUseCase', () => {
     const { queue, cases, submit, process } = setup(async () => {
       throw new Error('cascade must not run for XML');
     });
-    const c = await submit.execute(file(xml));
+    const c = await submit.execute(file(xml), { supplierId: 's1' });
     const [job] = await queue.receive(1);
     expect(await process.execute(job!.job)).toBe('processed');
     const saved = await cases.findCase(c.id);
@@ -236,10 +246,18 @@ describe('ProcessDocumentUseCase', () => {
     expect(saved?.extractions[0]?.invoiceChecks?.every((x) => x.passed)).toBe(true);
   });
 
+  it('does not let a supplier attach documents to another supplier case', async () => {
+    const { submit } = setup(async () => outcome(false));
+    const c = await submit.execute(file(), { supplierId: 's1' });
+    await expect(submit.execute(file(), { supplierId: 's2', caseId: c.id })).rejects.toThrow(
+      /not found/,
+    );
+  });
+
   it('attaches a second document to a case and acks duplicates', async () => {
     const { queue, cases, submit, process } = setup(async () => outcome(false));
-    const c = await submit.execute(file());
-    await submit.execute(file(xml), c.id);
+    const c = await submit.execute(file(), { supplierId: 's1' });
+    await submit.execute(file(xml), { supplierId: 's1', caseId: c.id });
     const jobs = await queue.receive(10);
     expect(jobs).toHaveLength(2);
     for (const j of jobs) expect(await process.execute(j.job)).toBe('processed');
@@ -252,7 +270,7 @@ describe('ProcessDocumentUseCase', () => {
 
   it('reports busy while another document of the case is extracting', async () => {
     const { queue, cases, submit, process } = setup(async () => outcome(false));
-    const c = await submit.execute(file());
+    const c = await submit.execute(file(), { supplierId: 's1' });
     await cases.transition(c.id, 'RECEIVED', 'EXTRACTING');
     const [job] = await queue.receive(1);
     expect(await process.execute(job!.job)).toBe('busy');
@@ -264,7 +282,7 @@ describe('ProcessDocumentUseCase', () => {
       if (++calls === 1) throw new Error('poppler crashed');
       return outcome(false);
     });
-    const c = await submit.execute(file());
+    const c = await submit.execute(file(), { supplierId: 's1' });
     const [job] = await queue.receive(1);
     await expect(process.execute(job!.job)).rejects.toThrow('poppler crashed');
     expect((await cases.findCase(c.id))?.status).toBe('FAILED');
