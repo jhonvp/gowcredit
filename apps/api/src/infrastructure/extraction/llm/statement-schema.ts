@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   type BankStatement,
+  type OtherItem,
+  SUMMARY_ITEM_DESCRIPTION,
   SUMMARY_ROW_PREFIX,
   type Tier,
   type Transaction,
@@ -45,13 +47,27 @@ export const SUMMARY_PROPERTIES = {
   reportedDebits: { ...nullable('number'), description: 'Total withdrawals as printed, or null' },
 } as const;
 
+const SUMMARY_ITEM_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    concept: { type: 'string', description: 'The concept as printed, in Spanish' },
+    amount: {
+      type: 'number',
+      description: 'Pesos. Positive adds to the balance (interest), negative subtracts (tax, fee)',
+    },
+  },
+  required: ['concept', 'amount'],
+  additionalProperties: false,
+} as const;
+
 export const STATEMENT_JSON_SCHEMA = {
   type: 'object',
   properties: {
     ...SUMMARY_PROPERTIES,
+    summaryItems: { type: 'array', items: SUMMARY_ITEM_JSON_SCHEMA },
     transactions: { type: 'array', items: ROW_JSON_SCHEMA },
   },
-  required: [...Object.keys(SUMMARY_PROPERTIES), 'transactions'],
+  required: [...Object.keys(SUMMARY_PROPERTIES), 'summaryItems', 'transactions'],
   additionalProperties: false,
 } as const;
 
@@ -74,6 +90,7 @@ export const llmStatementSchema = z.object({
   closingBalance: money.nullable(),
   reportedCredits: money.nullable(),
   reportedDebits: money.nullable(),
+  summaryItems: z.array(z.object({ concept: z.string(), amount: money })).default([]),
   transactions: z.array(llmRowSchema),
 });
 export type LlmRow = z.infer<typeof llmRowSchema>;
@@ -96,6 +113,15 @@ export function toRow(r: LlmRow): Transaction {
   };
 }
 
+/** A summary-only amount reported by a model. It only counts if adjustStatement can verify it. */
+export function toOtherItem(concept: string, pesos: number): OtherItem {
+  return {
+    concept: concept.trim().slice(0, 80),
+    amount: toCents(pesos),
+    description: SUMMARY_ITEM_DESCRIPTION,
+  };
+}
+
 export function toDomain(s: LlmStatement, tier: Tier): BankStatement {
   return {
     summary: {
@@ -109,6 +135,7 @@ export function toDomain(s: LlmStatement, tier: Tier): BankStatement {
       closingBalance: cents(s.closingBalance),
       reportedCredits: cents(s.reportedCredits),
       reportedDebits: cents(s.reportedDebits),
+      printedExtras: s.summaryItems.map((i) => toOtherItem(i.concept, i.amount)),
     },
     transactions: s.transactions.map(toRow),
     provenance: { summary: tier, transactions: tier },

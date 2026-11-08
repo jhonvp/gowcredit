@@ -9,6 +9,7 @@ import type {
   TierSkipped,
 } from '../../../application/ports/statement-extractor.port';
 import type { BankStatement } from '../../../domain/statement/bank-statement';
+import { adjustStatement } from '../../../domain/statement/adjustments';
 import { isIsoDate } from '../../../domain/shared/iso-date';
 import { toCents } from '../../../domain/shared/money';
 import { reorderedRows } from '../../../domain/validation/repair-flags';
@@ -21,6 +22,7 @@ import {
   llmRowSchema,
   ROW_JSON_SCHEMA,
   SUMMARY_PROPERTIES,
+  toOtherItem,
   toRow,
 } from './statement-schema';
 
@@ -176,11 +178,28 @@ export class T4RepairAgentExtractor implements StatementExtractorPort {
         },
       },
       {
+        name: 'add_summary_item',
+        description:
+          'Report an amount the summary prints that changes the balance but no row lists (interest, tax, fee). Pesos, signed: positive adds to the balance.',
+        inputSchema: closed({ concept: { type: 'string' }, amount: { type: 'number' } }),
+        run: (input) => {
+          const { concept, amount } = z
+            .object({ concept: z.string().min(1), amount: z.number().finite() })
+            .parse(input);
+          work.summary.printedExtras = [
+            ...(work.summary.printedExtras ?? []),
+            toOtherItem(concept, amount),
+          ];
+          edits++;
+          return { content: `${concept} recorded; call run_validators to check it` };
+        },
+      },
+      {
         name: 'run_validators',
         description: 'Run the domain validators on the current candidate.',
         inputSchema: closed({}),
         run: () => {
-          const report = validateStatement(work);
+          const report = validateStatement(adjustStatement(work));
           const lines = report.checks.map(
             (c) =>
               `${c.passed ? 'PASS' : 'FAIL'}${c.blocking ? '' : ' (info)'} ${c.id}: ${c.detail}`,

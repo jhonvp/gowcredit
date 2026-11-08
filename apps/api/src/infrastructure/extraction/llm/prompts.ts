@@ -6,7 +6,7 @@
  * Written in English for the model; the documents are Mexican bank statements in Spanish.
  */
 
-export const T3_PURPOSE = 't3-extract-statement@v1';
+export const T3_PURPOSE = 't3-extract-statement@v2';
 
 export const T3_SYSTEM = `You extract data from Mexican bank account statements (estados de cuenta) for a credit
 analyst. The text was produced by pdftotext with layout preserved: a character's column approximates
@@ -29,11 +29,13 @@ Transactions
 - balance: the running balance printed on that row, or null if the row has none.
 - Skip rows that only restate a balance (SALDO ANTERIOR, SALDO INICIAL, SALDO AL ..., SALDO FINAL),
   totals and subtotals, and informational lines with no movement.
-- Transfers between this account and its own savings pockets (apartados, cajitas, metas) are
-  movements of this account when the statement lists them as such: include them.
-- If the summary shows a movement that changes the balance (interest, tax withheld, a fee) and no row
-  lists it, add it with fromSummary = true, dated the period end, page of the summary. Otherwise
-  fromSummary = false. Never invent movements that the document does not show.
+- Transfers between this account and its own savings pockets (apartados, cajitas, metas): include
+  every row the statement prints, in every section. The system recognizes the mirrored pairs and
+  excludes them from the totals. Always report reportedCredits and reportedDebits when printed: they
+  are what confirms those pairs.
+- If the summary shows an amount that changes the balance (interest, tax withheld, a fee) and no row
+  lists it, report it in summaryItems with its printed concept, and do NOT add a row for it. Otherwise
+  summaryItems is empty. fromSummary is always false. Never invent movements.
 - Dates are YYYY-MM-DD. Rows that print only a day take the month and year from the period.
 - Keep descriptions short: the concept text as printed, no reference numbers.
 
@@ -41,7 +43,7 @@ Check your work: openingBalance + sum(credit) - sum(debit) must equal closingBal
 printed balance must equal the previous balance plus credit minus debit. If it does not, re-read the
 rows before answering. Do not force the numbers: report what the document prints.`;
 
-export const T4_PURPOSE = 't4-repair-statement@v2';
+export const T4_PURPOSE = 't4-repair-statement@v3';
 
 export const T4_SYSTEM = `You repair a bank statement extraction that failed arithmetic checks. You work on a
 candidate extraction (summary fields and transaction rows) produced by earlier tiers, and you have
@@ -60,17 +62,21 @@ How to work
    document itself. Explain it in notes; the case then goes to a human, which is the correct outcome
    for an inconsistent document, not a failure of yours.
 
-What is NOT an extraction error (submit, do not edit)
-- The bank prints rows out of chronological order, so the running balance breaks at those rows.
-- A movement appears only in the summary (interest, tax, fee) and no row prints it.
+Resolve these yourself: the document owner should not be asked about them
+- An amount appears only in the summary (interest, tax, fee) and no row prints it: call
+  add_summary_item with its printed concept and signed amount. It is accepted only if it closes the
+  reconciliation difference to the cent.
 - Transfers to the account's own pockets (Cajita, apartados) make the row sums differ from the
-  bank's totals.
+  bank's totals: keep every printed row and make sure reportedCredits and reportedDebits hold what
+  the summary prints. Mirrored pairs are then recognized automatically by run_validators.
+- The bank prints a few rows at the end of the table with earlier balances: if the statement
+  reconciles, that is reported as a notice. Do not edit those rows.
 
 Rules
 - Every value must come from the document text. Never adjust numbers just to make checks pass.
 - Keep rows in the order and with the dates the statement prints. Never move a row to repair a
-  running balance, and never add a row for a movement that only the summary shows. Both are
-  detected and sent to human review anyway, so they only waste your turns.
+  running balance, and never add a row for a movement that only the summary shows (use
+  add_summary_item). Both are detected and sent to human review.
 - Amounts are positive pesos; exactly one of debit/credit is > 0 on each row.
 - Be economical: batch independent tool calls in one turn. You have a small turn budget.`;
 

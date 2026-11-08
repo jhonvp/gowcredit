@@ -17,10 +17,9 @@ import { T4RepairAgentExtractor } from './t4-repair-agent-extractor';
 /**
  * Reproducibility (ADR 0004): a cascade run recorded once replays to the identical outcome with no
  * live model. Synthetic statement; the "live" model is scripted. T0 cannot resolve it (the summary
- * prints an interest line that no row lists), T3 returns a row with the wrong side, T4 fixes the side
- * and adds the summary-only interest row. That row makes the arithmetic pass, but the document does
- * not print it as a movement (`rows-as-printed`), so T4 ties with T0 at one blocking failure, the
- * earlier deterministic candidate is kept, and the document goes to review.
+ * prints a concept T0 does not know and no row lists it), T3 returns a row with the wrong side, and T4
+ * reports the summary-only amount. The domain verifies that it closes the difference to the cent, so
+ * the document is resolved without asking the owner.
  */
 const pdfText: DocumentTextPort = {
   extract: async () => ({
@@ -32,7 +31,7 @@ const pdfText: DocumentTextPort = {
           'BANCO DEMO                     ESTADO DE CUENTA',
           'Periodo: del 01/03/2025 al 31/03/2025',
           'Saldo inicial                 1,000.00',
-          'Intereses ganados                10.00',
+          'Bonificacion especial            10.00',
           'Saldo final                   1,210.00',
           '',
           'FECHA        CONCEPTO                        CARGOS        ABONOS         SALDO',
@@ -54,7 +53,7 @@ const row = (
   fromSummary = false,
 ) => ({ date, description, page: 1, debit, credit, balance, fromSummary });
 
-function scriptedModel(): LlmPort {
+function scriptedModel(summaryAmount = 10): LlmPort {
   let t4Turn = 0;
   const use = (id: string, name: string, input: unknown): LlmContent => ({
     type: 'tool_use',
@@ -75,6 +74,7 @@ function scriptedModel(): LlmPort {
           closingBalance: 1210,
           reportedCredits: null,
           reportedDebits: null,
+          summaryItems: [],
           // Wrong side on the payment → T3 fails the validators.
           transactions: [
             row('2025-03-05', 'DEPOSITO CLIENTE', 0, 500, 1500),
@@ -99,12 +99,9 @@ function scriptedModel(): LlmPort {
             index: 1,
             row: row('2025-03-20', 'PAGO PROVEEDOR', 300, 0, 1200),
           }),
-          use('c', 'insert_row', {
-            index: 2,
-            row: row('2025-03-31', 'Intereses ganados', 0, 10, null, true),
-          }),
+          use('c', 'add_summary_item', { concept: 'Bonificación especial', amount: summaryAmount }),
         ],
-        [use('d', 'submit_extraction', { notes: 'fixed side; added interest from summary' })],
+        [use('d', 'submit_extraction', { notes: 'reported the summary-only amount' })],
       ];
       const content = turns[t4Turn++] ?? [];
       return {
@@ -141,14 +138,16 @@ describe('cascade record → replay', () => {
     expect(recorded.attempts.map((a) => [a.tier, a.passed])).toEqual([
       ['T0', false],
       ['T3', false],
-      ['T4', false],
+      ['T4', true],
     ]);
-    expect(recorded.resolvedBy).toBe('T0');
-    expect(recorded.needsReview).toBe(true);
-    const t4 = recorded.attempts.find((a) => a.tier === 'T4');
-    expect(t4?.failedSections).toEqual(['transactions']);
+    expect(recorded.resolvedBy).toBe('T4');
+    expect(recorded.needsReview).toBe(false);
+    expect(recorded.statement.summary.otherItems).toMatchObject([
+      { concept: 'Bonificación especial', amount: 1_000 },
+    ]);
+    expect(recorded.statement.transactions).toHaveLength(2);
     expect(live.complete).toHaveBeenCalledTimes(4); // 1 Haiku call + 3 agent turns
-    expect(readdirSync(dir).sort()).toEqual(['t3-extract-statement@v1', 't4-repair-statement@v2']);
+    expect(readdirSync(dir).sort()).toEqual(['t3-extract-statement@v2', 't4-repair-statement@v3']);
 
     const replayed = await cascade(new ReplayLlmAdapter(store, DEFAULT_MODELS, logger)).execute(
       new Uint8Array(),
@@ -156,9 +155,15 @@ describe('cascade record → replay', () => {
     );
     expect(live.complete).toHaveBeenCalledTimes(4);
     expect(replayed.statement).toEqual(recorded.statement);
-    expect(replayed.resolvedBy).toBe('T0');
+    expect(replayed.resolvedBy).toBe('T4');
     expect(replayed.validation).toEqual(recorded.validation);
     expect(replayed.costUsd).toBeCloseTo(recorded.costUsd);
     expect(replayed.attempts.find((a) => a.tier === 'T4')?.diagnostics.replayed).toBe(true);
+  });
+
+  it('does not accept a summary amount from the model that does not close the difference', async () => {
+    const out = await cascade(scriptedModel(9)).execute(new Uint8Array(), { documentId: 'demo' });
+    expect(out.needsReview).toBe(true);
+    expect(out.statement.summary.otherItems ?? []).toEqual([]);
   });
 });

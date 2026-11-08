@@ -121,7 +121,7 @@ describe('T3LlmStatementExtractor', () => {
     const out = await new T3LlmStatementExtractor(llm).extract(text, context(brokenCandidate));
     if ('skipped' in out) throw new Error('unexpected skip');
 
-    expect(seen[0]).toMatchObject({ model: 'basic', purpose: 't3-extract-statement@v1' });
+    expect(seen[0]).toMatchObject({ model: 'basic', purpose: 't3-extract-statement@v2' });
     expect(seen[0]?.outputSchema).toBeDefined();
     const prompt = JSON.stringify(seen[0]?.messages);
     expect(prompt).toContain('=== page 1 ===');
