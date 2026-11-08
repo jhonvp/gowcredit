@@ -46,3 +46,17 @@ added the summary-only interest. Field accuracy was the same, but "known anomali
 2/2 to 0/2, and the decisions became QUALIFIES / DOES_NOT_QUALIFY instead of NEEDS_INFO. The agent was
 transparent in its notes, but the notes are not part of the decision. The guard above works whatever
 the model does; prompt v2 makes the agent stop earlier (Nu: 95 s → 8 s).
+
+**Addendum (2026-11-08): what the document prints beyond its movements.** The flag-never-fix rule stands
+for rows: no tier moves or invents them. Three cases are now resolved without asking the owner, always
+verified by the domain (`adjustStatement`, every tier):
+
+- **Internal transfers.** Mirror pairs (same date, amount and concept, opposite side) are marked `internal`
+  only if removing them makes the rows match the totals the bank printed. They stay visible but do not count.
+- **Summary-only amounts** (e.g. interest). T0 reads known labels; T3 reports `summaryItems` and T4 calls
+  `add_summary_item` for any other concept. They count only if they close the difference to the cent.
+- **Rows printed out of order.** A broken running balance is a notice when the statement reconciles and the
+  breaks are a few rows in the last 20% of the table. Anywhere else it stays blocking.
+
+Prompts are `t3-extract-statement@v2` and `t4-repair-statement@v3`. With these rules T0 resolves the whole
+development set, so the earlier fixtures were removed.
