@@ -15,7 +15,6 @@ import {
   Post,
   Query,
   Res,
-  UnsupportedMediaTypeException,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -45,10 +44,8 @@ import {
   type ClarificationRepositoryPort,
 } from '../../application/ports/clarification.ports';
 import {
-  CaseNotFoundError,
   MAX_DOCUMENT_BYTES,
   SubmitDocumentUseCase,
-  UnsupportedDocumentError,
 } from '../../application/use-cases/submit-document.use-case';
 import { canReadCase, type Principal, submittingSupplier } from '../../domain/auth/principal';
 import { CurrentPrincipal, Roles } from '../../infrastructure/auth/guards';
@@ -194,26 +191,20 @@ export class DocumentsController {
     const ownerEmail = opts.ownerEmail?.trim() || (p.kind === 'user' ? p.email : null);
     if (ownerEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ownerEmail))
       throw new BadRequestException('ownerEmail is not a valid email');
-    try {
-      const updated = await this.submit.execute(
-        {
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          bytes: file.buffer,
-          sha256: createHash('sha256').update(file.buffer).digest('hex'),
-        },
-        { supplierId, ownerEmail, caseId: opts.caseId },
-      );
-      return {
-        caseId: updated.id,
-        documentId: updated.documents[updated.documents.length - 1]?.id as string,
-        status: updated.status,
-      };
-    } catch (e) {
-      if (e instanceof UnsupportedDocumentError) throw new UnsupportedMediaTypeException(e.message);
-      if (e instanceof CaseNotFoundError) throw new NotFoundException(e.message);
-      throw e;
-    }
+    const updated = await this.submit.execute(
+      {
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        bytes: file.buffer,
+        sha256: createHash('sha256').update(file.buffer).digest('hex'),
+      },
+      { supplierId, ownerEmail, caseId: opts.caseId },
+    );
+    return {
+      caseId: updated.id,
+      documentId: updated.documents[updated.documents.length - 1]?.id as string,
+      status: updated.status,
+    };
   }
 
   @Get('cases/:id')
