@@ -17,7 +17,7 @@ import { TypeOrmUserRepository } from '../persistence/repositories/typeorm-user.
 import { Argon2PasswordHasher } from './argon2-password-hasher';
 import { ApiAuthGuard, RolesGuard } from './guards';
 import { loginThrottlers } from './login-throttle';
-import { ApiKeyStrategy, JwtStrategy, LocalStrategy } from './strategies';
+import { ApiKeyStrategy, JWT_AUDIENCE, JWT_ISSUER, JwtStrategy, LocalStrategy } from './strategies';
 
 /** Passport wiring (ADR 0005): local → JWT for users, X-API-Key for integrations, global guards. */
 @Global()
@@ -36,7 +36,12 @@ import { ApiKeyStrategy, JwtStrategy, LocalStrategy } from './strategies';
       inject: [AppConfig],
       useFactory: (config: AppConfig) => ({
         secret: config.auth.jwtSecret,
-        signOptions: { expiresIn: config.auth.jwtTtlSeconds, algorithm: 'HS256' },
+        signOptions: {
+          expiresIn: config.auth.jwtTtlSeconds,
+          algorithm: 'HS256',
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+        },
       }),
     }),
   ],

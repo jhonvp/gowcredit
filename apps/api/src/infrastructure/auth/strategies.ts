@@ -7,6 +7,8 @@ import { Strategy as LocalStrategyBase } from 'passport-local';
 import {
   API_KEY_REPOSITORY_PORT,
   type ApiKeyRepositoryPort,
+  USER_REPOSITORY_PORT,
+  type UserRepositoryPort,
 } from '../../application/ports/auth.ports';
 import { AuthenticateUserUseCase } from '../../application/use-cases/authenticate-user.use-case';
 import type { Principal, Role } from '../../domain/auth/principal';
@@ -32,20 +34,35 @@ export interface JwtPayload {
   role: Role;
 }
 
-/** Authorization: Bearer <jwt> for suppliers and analysts. */
+/** Who signs our JWTs and who they are for: a token minted for anything else is rejected. */
+export const JWT_ISSUER = 'gowcredit-api';
+export const JWT_AUDIENCE = 'gowcredit-web';
+
+/**
+ * Authorization: Bearer <jwt> for suppliers and analysts. The signature, algorithm, expiry, issuer and
+ * audience are checked, then the user is read again: a deleted user is rejected at once, and the role
+ * comes from the database, not from the token, so a role change applies before the token expires.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
-  constructor(config: AppConfig) {
+  constructor(
+    config: AppConfig,
+    @Inject(USER_REPOSITORY_PORT) private readonly users: UserRepositoryPort,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: config.auth.jwtSecret,
       ignoreExpiration: false,
       algorithms: ['HS256'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
     });
   }
 
-  validate(payload: JwtPayload): Principal {
-    return { kind: 'user', userId: payload.sub, email: payload.email, role: payload.role };
+  async validate(payload: JwtPayload): Promise<Principal> {
+    const user = await this.users.findById(payload.sub);
+    if (!user) throw new UnauthorizedException();
+    return { kind: 'user', userId: user.id, email: user.email, role: user.role };
   }
 }
 

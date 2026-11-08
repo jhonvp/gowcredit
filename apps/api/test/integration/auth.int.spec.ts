@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -83,6 +84,34 @@ describe('auth (integration)', () => {
     expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
     expect(res.headers['content-security-policy']).toContain("default-src 'self'");
     expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
+  it('rejects JWTs for another audience or a deleted user, and takes the role from the database', async () => {
+    const jwt = app.get(JwtService);
+    const me = (await http().get('/api/auth/me').set(supplier).expect(200)).body as {
+      id: string;
+      email: string;
+    };
+    const sign = (payload: object, opts: object = {}) => jwt.signAsync(payload, opts);
+    const otherAudience = await sign(
+      { sub: me.id, email: me.email, role: 'supplier' },
+      { audience: 'someone-else' },
+    );
+    await http().get('/api/cases').set(bearer(otherAudience)).expect(401);
+    const ghost = await sign({
+      sub: '00000000-0000-4000-8000-000000000000',
+      email: 'ghost@demo.mx',
+      role: 'analyst',
+    });
+    await http().get('/api/cases').set(bearer(ghost)).expect(401);
+    // A token claiming "analyst" for a supplier account gets supplier rights.
+    const claimsAnalyst = await sign({ sub: me.id, email: me.email, role: 'analyst' });
+    await http().get(`/api/cases/${caseId}`).set(bearer(claimsAnalyst)).expect(200);
+    await http()
+      .post(`/api/cases/${caseId}/copilot`)
+      .set(bearer(claimsAnalyst))
+      .send({ question: 'x' })
+      .expect(403);
   });
 
   it('requires authentication everywhere except health and login', async () => {
