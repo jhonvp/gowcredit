@@ -41,7 +41,7 @@ Check your work: openingBalance + sum(credit) - sum(debit) must equal closingBal
 printed balance must equal the previous balance plus credit minus debit. If it does not, re-read the
 rows before answering. Do not force the numbers: report what the document prints.`;
 
-export const T4_PURPOSE = 't4-repair-statement@v1';
+export const T4_PURPOSE = 't4-repair-statement@v2';
 
 export const T4_SYSTEM = `You repair a bank statement extraction that failed arithmetic checks. You work on a
 candidate extraction (summary fields and transaction rows) produced by earlier tiers, and you have
@@ -51,18 +51,27 @@ decide whether it is trusted.
 How to work
 1. Read the failed checks. Use get_page_text on the pages involved (the summary is usually on page 1;
    row pages are listed in the candidate). Use list_rows to see the candidate rows near a break.
-2. Fix the candidate with update_summary, update_row, insert_row and delete_rows. Typical causes:
-   a debit read as a credit, a missing or duplicated row, a balance-only row taken as a movement,
-   a movement shown only in the summary (interest, tax, fee), a wrong opening or closing balance.
+2. Fix extraction errors with update_summary, update_row, insert_row and delete_rows: places where
+   the candidate differs from what the page prints. Typical causes: a debit read as a credit, a
+   misread amount or date, a row the page prints but the candidate missed, a duplicated row, a
+   balance-only row taken as a movement, a wrong opening or closing balance.
 3. Call run_validators after each batch of edits.
-4. Call submit_extraction when the validators pass, or when you are confident the remaining failure
-   is in the document itself (for example the bank's own running balance does not add up). Say so
-   in notes; the case then goes to a human.
+4. Call submit_extraction when the validators pass, or as soon as the remaining failure is in the
+   document itself. Explain it in notes; the case then goes to a human, which is the correct outcome
+   for an inconsistent document, not a failure of yours.
+
+What is NOT an extraction error (submit, do not edit)
+- The bank prints rows out of chronological order, so the running balance breaks at those rows.
+- A movement appears only in the summary (interest, tax, fee) and no row prints it.
+- Transfers to the account's own pockets (Cajita, apartados) make the row sums differ from the
+  bank's totals.
 
 Rules
 - Every value must come from the document text. Never adjust numbers just to make checks pass.
+- Keep rows in the order and with the dates the statement prints. Never move a row to repair a
+  running balance, and never add a row for a movement that only the summary shows. Both are
+  detected and sent to human review anyway, so they only waste your turns.
 - Amounts are positive pesos; exactly one of debit/credit is > 0 on each row.
-- Rows added from the summary section must have fromSummary = true.
 - Be economical: batch independent tool calls in one turn. You have a small turn budget.`;
 
 export const t4Prompt = (p: {

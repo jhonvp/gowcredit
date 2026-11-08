@@ -10,6 +10,11 @@ export interface StatementExtraction {
   diagnostics: Diagnostics;
   /** Better text for the tiers after this one (T1 replaces unreadable pages with OCR text). */
   text?: DocumentText;
+  /**
+   * Rows the tier moved out of printed order relative to the candidate it repaired (T4). The use
+   * case turns it into the blocking `rows-as-printed` check.
+   */
+  reorderedRows?: number;
 }
 
 /** A tier that could not run (no fixture in replay mode, LLM disabled, nothing to repair). */

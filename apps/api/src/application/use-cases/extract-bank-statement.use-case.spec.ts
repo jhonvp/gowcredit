@@ -146,4 +146,60 @@ describe('ExtractBankStatementUseCase', () => {
     expect(out.resolvedBy).toBe('T3');
     expect(out.statement.provenance).toEqual({ summary: 'T0', transactions: 'T3' });
   });
+
+  it('sends a repair that only passes by reordering rows to review', async () => {
+    // Earlier candidate with no rows; T4 brings rows that pass the arithmetic only because it moved 2
+    // of them, so its result keeps a blocking rows-as-printed failure and nothing passes.
+    const t0 = tier('T0', 1500);
+    vi.mocked(t0.extract).mockResolvedValueOnce({
+      statement: { ...statement(1500), transactions: [] },
+      diagnostics: {},
+    });
+    const t4: StatementExtractorPort = {
+      tier: 'T4',
+      extract: vi.fn(async () => ({
+        statement: {
+          ...statement(1500),
+          provenance: { summary: 'T4' as const, transactions: 'T4' as const },
+        },
+        reorderedRows: 2,
+        diagnostics: {},
+      })),
+    };
+    const out = await new ExtractBankStatementUseCase(text, [t0, t4], logger).execute(
+      new Uint8Array(),
+      { documentId: 'd1' },
+    );
+    expect(out.attempts.map((a) => [a.tier, a.passed])).toEqual([
+      ['T0', false],
+      ['T4', false],
+    ]);
+    expect(out.attempts[1]?.failedSections).toEqual(['transactions']);
+    expect(out.needsReview).toBe(true);
+  });
+
+  it('flags summary-only rows from any tier for review', async () => {
+    const t3: StatementExtractorPort = {
+      tier: 'T3',
+      extract: vi.fn(async () => {
+        const s = statement(1500);
+        const [first] = s.transactions;
+        return {
+          statement: {
+            ...s,
+            transactions: [{ ...first!, description: '[resumen] Intereses' }],
+          },
+          diagnostics: {},
+        };
+      }),
+    };
+    const out = await new ExtractBankStatementUseCase(text, [t3], logger).execute(
+      new Uint8Array(),
+      { documentId: 'd1' },
+    );
+    expect(out.needsReview).toBe(true);
+    expect(out.validation.checks.find((c) => c.id === 'rows-as-printed')?.detail).toContain(
+      '1 row(s) taken from the summary',
+    );
+  });
 });

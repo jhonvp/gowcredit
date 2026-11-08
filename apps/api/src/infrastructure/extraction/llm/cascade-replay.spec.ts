@@ -17,7 +17,10 @@ import { T4RepairAgentExtractor } from './t4-repair-agent-extractor';
 /**
  * Reproducibility (ADR 0004): a cascade run recorded once replays to the identical outcome with no
  * live model. Synthetic statement; the "live" model is scripted. T0 cannot resolve it (the summary
- * prints an interest line that no row lists), T3 returns a row with the wrong side, T4 repairs it.
+ * prints an interest line that no row lists), T3 returns a row with the wrong side, T4 fixes the side
+ * and adds the summary-only interest row. That row makes the arithmetic pass, but the document does
+ * not print it as a movement (`rows-as-printed`), so T4 ties with T0 at one blocking failure, the
+ * earlier deterministic candidate is kept, and the document goes to review.
  */
 const pdfText: DocumentTextPort = {
   extract: async () => ({
@@ -138,12 +141,14 @@ describe('cascade record → replay', () => {
     expect(recorded.attempts.map((a) => [a.tier, a.passed])).toEqual([
       ['T0', false],
       ['T3', false],
-      ['T4', true],
+      ['T4', false],
     ]);
-    expect(recorded.resolvedBy).toBe('T4');
-    expect(recorded.statement.transactions.at(-1)?.description).toBe('[resumen] Intereses ganados');
+    expect(recorded.resolvedBy).toBe('T0');
+    expect(recorded.needsReview).toBe(true);
+    const t4 = recorded.attempts.find((a) => a.tier === 'T4');
+    expect(t4?.failedSections).toEqual(['transactions']);
     expect(live.complete).toHaveBeenCalledTimes(4); // 1 Haiku call + 3 agent turns
-    expect(readdirSync(dir).sort()).toEqual(['t3-extract-statement@v1', 't4-repair-statement@v1']);
+    expect(readdirSync(dir).sort()).toEqual(['t3-extract-statement@v1', 't4-repair-statement@v2']);
 
     const replayed = await cascade(new ReplayLlmAdapter(store, DEFAULT_MODELS, logger)).execute(
       new Uint8Array(),
@@ -151,7 +156,8 @@ describe('cascade record → replay', () => {
     );
     expect(live.complete).toHaveBeenCalledTimes(4);
     expect(replayed.statement).toEqual(recorded.statement);
-    expect(replayed.resolvedBy).toBe('T4');
+    expect(replayed.resolvedBy).toBe('T0');
+    expect(replayed.validation).toEqual(recorded.validation);
     expect(replayed.costUsd).toBeCloseTo(recorded.costUsd);
     expect(replayed.attempts.find((a) => a.tier === 'T4')?.diagnostics.replayed).toBe(true);
   });
