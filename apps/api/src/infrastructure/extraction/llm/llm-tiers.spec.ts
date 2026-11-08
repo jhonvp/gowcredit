@@ -111,6 +111,7 @@ const brokenCandidate: BankStatement = {
 };
 const context = (statement: BankStatement | null): ExtractionContext => ({
   documentId: 'doc',
+  pdf: new Uint8Array(),
   previous: statement ? { statement, validation: validateStatement(statement), tier: 'T0' } : null,
 });
 

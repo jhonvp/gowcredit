@@ -76,9 +76,20 @@ const MAX_DESCRIPTION_LINES = 8;
 /** Lines searched for the record's amounts (Banamex prints them after up to ~15 reference lines). */
 const MAX_CONTINUATION_LINES = 30;
 
+/** Role a line played in a parsed table: training labels for the T2 line classifier (ADR 0003). */
+export type LineLabel = 'table_header' | 'transaction_row' | 'continuation';
+export interface LabeledLine {
+  page: number;
+  /** 0-based index into the page's lines. */
+  line: number;
+  label: LineLabel;
+}
+
 interface OpenRecord {
   date: IsoDate;
   page: number;
+  /** Lines of this record as [page, index]; the first one is the dated row line. */
+  lines: [number, number][];
   text: string[];
   amounts: AmountToken[];
   header: Header;
@@ -90,6 +101,8 @@ export interface TableResult {
   /** Balance found on an "opening" pseudo-row (SALDO ANTERIOR / BALANCE INICIAL), if any. */
   openingFromTable: Cents | null;
   headersFound: number;
+  /** Header lines and the lines of every record that became a transaction. */
+  labels: LabeledLine[];
 }
 
 export function parseTransactions(
@@ -104,6 +117,7 @@ export function parseTransactions(
   let prevBalance: Cents | null = openingBalance;
   let openingFromTable: Cents | null = null;
   let prevDate: IsoDate | null = null;
+  const labels: LabeledLine[] = [];
 
   const close = () => {
     if (!open) return;
@@ -127,6 +141,9 @@ export function parseTransactions(
     const tx = decide(rec, description, amounts, prevBalance);
     if (!tx) return;
     transactions.push(tx);
+    rec.lines.forEach(([pg, ln], i) =>
+      labels.push({ page: pg, line: ln, label: i === 0 ? 'transaction_row' : 'continuation' }),
+    );
     prevBalance = tx.balance ?? (prevBalance === null ? null : prevBalance + tx.credit - tx.debit);
   };
 
@@ -134,10 +151,11 @@ export function parseTransactions(
     if (page.quality < QUALITY_THRESHOLD) continue;
     // Lines above the repeated table header (bank title, "Página 3 de 31") are page chrome.
     let inPageChrome = true;
-    for (const line of page.lines) {
+    for (const [lineIndex, line] of page.lines.entries()) {
       if (line.trim() === '') continue;
       const h = readHeader(line);
       if (h) {
+        labels.push({ page: page.number, line: lineIndex, label: 'table_header' });
         // A record can continue across a page break: Banamex prints its amounts after the next
         // page's header. Keep it open while it has no amounts yet.
         const pending = open as OpenRecord | null;
@@ -168,6 +186,7 @@ export function parseTransactions(
           open = {
             date,
             page: page.number,
+            lines: [[page.number, lineIndex]],
             text: [stripAmounts(rest, amounts, rowDate.end)],
             amounts,
             header,
@@ -183,13 +202,16 @@ export function parseTransactions(
         const amounts = findAmounts(line);
         const inNumeric = amounts.filter((a) => a.end >= rec.header.numericStart - NUMERIC_SLACK);
         // Amounts on a continuation line count only if the record has none yet (Banamex puts them last).
-        if (rec.amounts.length === 0 && inNumeric.length > 0) rec.amounts = inNumeric;
-        if (rec.text.length < MAX_DESCRIPTION_LINES) rec.text.push(stripAmounts(line, amounts, 0));
+        const takesAmounts = rec.amounts.length === 0 && inNumeric.length > 0;
+        if (takesAmounts) rec.amounts = inNumeric;
+        const keepsText = rec.text.length < MAX_DESCRIPTION_LINES;
+        if (keepsText) rec.text.push(stripAmounts(line, amounts, 0));
+        if (keepsText || takesAmounts) rec.lines.push([page.number, lineIndex]);
       }
     }
   }
   close();
-  return { transactions, openingFromTable, headersFound };
+  return { transactions, openingFromTable, headersFound, labels };
 }
 
 function decide(

@@ -8,6 +8,8 @@ export interface StatementExtraction {
   statement: BankStatement;
   /** Tier-specific facts for the eval report and logs (never PII). `costUsd` is summed per document. */
   diagnostics: Diagnostics;
+  /** Better text for the tiers after this one (T1 replaces unreadable pages with OCR text). */
+  text?: DocumentText;
 }
 
 /** A tier that could not run (no fixture in replay mode, LLM disabled, nothing to repair). */
@@ -18,6 +20,8 @@ export interface TierSkipped {
 
 export interface ExtractionContext {
   documentId: string;
+  /** Original file bytes, for tiers that need to rasterize pages (T1 OCR). */
+  pdf: Uint8Array;
   /** Best candidate from the earlier tiers and why it failed; null for the first tier. */
   previous: { statement: BankStatement; validation: ValidationReport; tier: Tier } | null;
 }
