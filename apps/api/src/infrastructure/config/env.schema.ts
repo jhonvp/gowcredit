@@ -40,6 +40,14 @@ export const envSchema = z.object({
   SMTP_URL: z.string().default('smtp://mailpit:1025'),
   MAIL_FROM: z.string().default('GowCredit <no-reply@gowcredit.local>'),
   WEB_BASE_URL: z.string().url().default('http://localhost:5173'),
+  /**
+   * Lets analysts generate a fresh owner link in the UI (local demos, or sharing it by phone). Off by
+   * default: in production the emailed link is the only one, and only its hash is stored.
+   */
+  OWNER_LINK_SHARING: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   // Eligibility (ADR 0007). Fixed evaluation date for reproducible runs; default is today.
   ELIGIBILITY_AS_OF: z
     .string()
