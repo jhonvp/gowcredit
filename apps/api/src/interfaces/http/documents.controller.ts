@@ -13,11 +13,13 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UnsupportedMediaTypeException,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import {
   type CaseSummaryView,
   type CaseView,
@@ -89,14 +91,20 @@ export class DocumentsController {
   async file(
     @CurrentPrincipal() p: Principal,
     @Param('id', new ParseUUIDPipe()) id: string,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const doc = await this.cases.findDocument(id);
     const c = doc ? await this.cases.findCase(doc.caseId) : null;
     if (!doc || !c || !canReadCase(p, c)) throw new NotFoundException('document not found');
     const bytes = await this.storage.get(doc.storageKey);
+    const pdf = doc.mimeType === 'application/pdf';
+    // Supplier-controlled bytes: never let the browser sniff or run them. XML can carry XHTML
+    // <script>, so anything but a PDF is a sandboxed download, not an inline document.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (!pdf) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
     return new StreamableFile(Buffer.from(bytes), {
       type: doc.mimeType,
-      disposition: `inline; filename="${doc.originalName.replace(/[^\w.-]/g, '_')}"`,
+      disposition: `${pdf ? 'inline' : 'attachment'}; filename="${doc.originalName.replace(/[^\w.-]/g, '_')}"`,
     });
   }
 

@@ -79,13 +79,25 @@ export const api = {
   copilot: (token: string, caseId: string, question: string): Promise<CopilotResponse> =>
     call(`/api/cases/${caseId}/copilot`, CopilotResponseSchema, { ...json({ question }), token }),
 
-  /** Authenticated download as an object URL (the browser's PDF viewer shows it). */
-  async documentUrl(token: string, documentId: string): Promise<string> {
+  /**
+   * Authenticated download. PDFs become an object URL for the browser's PDF viewer. Anything else
+   * (CFDI XML) comes back as text and is shown escaped: an uploaded XML can carry XHTML <script>, and
+   * a blob: URL has this app's origin, so it must never be rendered as a document.
+   */
+  async documentFile(
+    token: string,
+    documentId: string,
+  ): Promise<{ kind: 'pdf'; url: string } | { kind: 'text'; text: string }> {
     const res = await fetch(`/api/documents/${documentId}/file`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new ApiError(res.status, res.statusText);
-    return URL.createObjectURL(await res.blob());
+    const type = res.headers.get('content-type') ?? '';
+    if (type.startsWith('application/pdf')) {
+      const pdf = new Blob([await res.arrayBuffer()], { type: 'application/pdf' });
+      return { kind: 'pdf', url: URL.createObjectURL(pdf) };
+    }
+    return { kind: 'text', text: await res.text() };
   },
 
   owner: {

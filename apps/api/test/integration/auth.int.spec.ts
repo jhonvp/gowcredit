@@ -88,6 +88,25 @@ describe('auth (integration)', () => {
     expect(file.body.subarray(0, 5).toString()).toBe('%PDF-');
     await http().get(`/api/documents/${docId}/file`).set(supplier2).expect(404);
     await http().get(`/api/documents/${docId}/file`).expect(401);
+    expect(file.headers['x-content-type-options']).toBe('nosniff');
+    expect(file.headers['content-disposition']).toMatch(/^inline;/);
+  });
+
+  it('serves uploaded XML as a sandboxed download, never as an inline document', async () => {
+    const xml =
+      '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><script>1</script></html>';
+    const res = await http()
+      .post('/api/documents')
+      .set(supplier)
+      .attach('file', Buffer.from(xml), { filename: 'x.xml', contentType: 'application/xml' })
+      .expect(202);
+    const file = await http()
+      .get(`/api/documents/${res.body.documentId as string}/file`)
+      .set(analyst)
+      .expect(200);
+    expect(file.headers['content-disposition']).toMatch(/^attachment;/);
+    expect(file.headers['content-security-policy']).toContain('sandbox');
+    expect(file.headers['x-content-type-options']).toBe('nosniff');
   });
 
   it('lets integrations submit with an API key for their supplier; analysts cannot submit', async () => {
