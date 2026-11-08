@@ -5,8 +5,8 @@ Ingests bank statements and CFDI invoices, extracts their data through a cost-or
 validates it, and decides whether the supplier qualifies. When something is unclear, it asks the owner
 and uses the answer.
 
-> Status: **scaffold**. Extraction, eligibility and the clarification loop land in follow-up PRs
-> (see [`docs/PLAN.md`](docs/PLAN.md)).
+> Status: extraction T0 (deterministic) and the LLM tiers T3/T4 are in. Eligibility and the
+> clarification loop land in follow-up PRs (see [`docs/PLAN.md`](docs/PLAN.md)).
 
 ## Requirements
 
@@ -38,6 +38,17 @@ make smoke     # checks every service
 | All of it   |                                                       | `make check-all`        | starts it            |
 
 `make check` runs lint, typecheck, unit and integration tests, which is what CI runs on every PR.
+
+## Extraction eval and LLM modes
+
+```bash
+make eval          # T0 → T3 (Haiku) → T4 (Opus agent), LLM answers replayed from fixtures/llm
+make eval-t0       # deterministic baseline only
+make eval-record   # record missing LLM fixtures (needs ANTHROPIC_API_KEY in .env)
+```
+
+`LLM_MODE` controls the LLM tiers everywhere (API and eval): `replay` (default, no key needed),
+`record`, `live`, `off`. See [`eval/README.md`](eval/README.md) and ADR 0004.
 
 ## Other commands
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { LlmSettings } from '../llm/create-llm';
 import type { Env } from './env.schema';
 
 /** Typed accessor over validated env; adapters read config only through this. */
@@ -21,5 +22,19 @@ export class AppConfig {
   }
   get dbLogging(): boolean {
     return this.config.get('DB_LOGGING', { infer: true });
+  }
+  get llm(): LlmSettings {
+    return {
+      mode: this.config.get('LLM_MODE', { infer: true }),
+      fixturesDir: this.config.get('LLM_FIXTURES_DIR', { infer: true }) || undefined,
+      models: {
+        ...(this.config.get('LLM_MODEL_BASIC', { infer: true })
+          ? { basic: this.config.get('LLM_MODEL_BASIC', { infer: true }) as string }
+          : {}),
+        ...(this.config.get('LLM_MODEL_BIG', { infer: true })
+          ? { big: this.config.get('LLM_MODEL_BIG', { infer: true }) as string }
+          : {}),
+      },
+    };
   }
 }

@@ -3,8 +3,12 @@ export type IsoDate = string;
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-export const isIsoDate = (v: string): v is IsoDate =>
-  ISO.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+/** Strict: `2025-02-30` is rejected (Date.parse would roll it over to March 2). */
+export const isIsoDate = (v: string): v is IsoDate => {
+  if (!ISO.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
 
 export const isoDate = (year: number, month: number, day: number): IsoDate | null => {
   const d = new Date(Date.UTC(year, month - 1, day));

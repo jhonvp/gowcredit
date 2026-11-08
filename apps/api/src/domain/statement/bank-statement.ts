@@ -13,8 +13,11 @@ export interface Transaction {
   /** Running balance printed on the row, when the bank prints one. */
   balance: Cents | null;
   page: number;
-  /** How the debit/credit side was decided: balance delta (strong) or column/sign (weaker). */
-  sideBy: 'balance-delta' | 'column' | 'sign';
+  /**
+   * How the debit/credit side was decided: balance delta (strong), column/sign (weaker), or read
+   * by an LLM tier (checked afterwards by the same validators).
+   */
+  sideBy: 'balance-delta' | 'column' | 'sign' | 'model';
 }
 
 export interface StatementSummary {

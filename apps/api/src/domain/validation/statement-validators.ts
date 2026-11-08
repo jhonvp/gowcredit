@@ -1,5 +1,5 @@
 import { type BankStatement, totalCredits, totalDebits } from '../statement/bank-statement';
-import { daysBetween } from '../shared/iso-date';
+import { daysBetween, isIsoDate } from '../shared/iso-date';
 import { type Cents, formatMxn } from '../shared/money';
 
 /**
@@ -10,6 +10,7 @@ export type CheckId =
   | 'required-fields'
   | 'period-valid'
   | 'rows-present'
+  | 'rows-well-formed'
   | 'rows-reconcile'
   | 'running-balance'
   | 'dates-in-period'
@@ -75,6 +76,30 @@ export function validateStatement(s: BankStatement): ValidationReport {
     passed: transactions.length > 0,
     detail: `${transactions.length} rows`,
   });
+
+  // Every row: a real date, non-negative amounts, exactly one side. LLM tiers can emit anything,
+  // and the checks below assume this shape (an invalid date would make the period check vacuous).
+  const malformed = transactions.findIndex(
+    (t) =>
+      !isIsoDate(t.date) ||
+      t.debit < 0 ||
+      t.credit < 0 ||
+      t.debit > 0 === t.credit > 0 ||
+      !Number.isInteger(t.debit) ||
+      !Number.isInteger(t.credit),
+  );
+  if (transactions.length > 0) {
+    checks.push({
+      id: 'rows-well-formed',
+      section: 'transactions',
+      blocking: true,
+      passed: malformed === -1,
+      detail:
+        malformed === -1
+          ? 'dates valid, one side per row'
+          : `row ${malformed + 1} has an invalid date or not exactly one of debit/credit`,
+    });
+  }
 
   if (
     summary.openingBalance !== null &&

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-07T17:47:34.328Z",
-  "pipeline": "T0 (deterministic)",
+  "generatedAt": "2026-11-07T19:07:56.294Z",
+  "pipeline": "T0 → T3 → T4 (LLM_MODE=replay)",
   "documents": 9,
   "fieldAccuracy": {
     "correct": 78,
@@ -13,6 +13,14 @@
     "flagged": 2,
     "falseFlags": []
   },
+  "llmCostUsd": 0,
+  "agentTurns": 0,
+  "llmSkips": [
+    "EDC_03_Fondeadora_2025-10.pdf: T3 fixture-missing",
+    "EDC_03_Fondeadora_2025-10.pdf: T4 fixture-missing",
+    "EDC_08_Nu_2025-07.pdf: T3 fixture-missing",
+    "EDC_08_Nu_2025-07.pdf: T4 fixture-missing"
+  ],
   "byField": [
     {
       "field": "bankName",
@@ -124,8 +132,11 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 37,
-      "durationMs": 74,
-      "tiers": "T0✓"
+      "durationMs": 79,
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     },
     {
       "file": "EDC_02_Hey_2025-04.pdf",
@@ -190,8 +201,11 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 282,
-      "durationMs": 246,
-      "tiers": "T0✓"
+      "durationMs": 248,
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     },
     {
       "file": "EDC_03_Fondeadora_2025-10.pdf",
@@ -253,11 +267,19 @@
       ],
       "resolvedBy": "T0",
       "needsReview": true,
-      "failedChecks": ["running-balance: 2/41 rows break the chain (first at row 36)"],
+      "failedChecks": [
+        "running-balance: 2/41 rows break the chain (first at row 36)"
+      ],
       "expectedFlag": true,
       "rows": 41,
-      "durationMs": 19,
-      "tiers": "T0✗"
+      "durationMs": 24,
+      "tiers": "T0✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing)",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": [
+        "T3 fixture-missing",
+        "T4 fixture-missing"
+      ]
     },
     {
       "file": "EDC_04_Banamex_2026-02.pdf",
@@ -322,8 +344,11 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 93,
-      "durationMs": 129,
-      "tiers": "T0✓"
+      "durationMs": 135,
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     },
     {
       "file": "EDC_05_BBVA_2025-09.pdf",
@@ -388,8 +413,11 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 161,
-      "durationMs": 68,
-      "tiers": "T0✓"
+      "durationMs": 71,
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     },
     {
       "file": "EDC_06_MercadoPago_2026-06a09.pdf",
@@ -454,8 +482,11 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 217,
-      "durationMs": 42,
-      "tiers": "T0✓"
+      "durationMs": 40,
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     },
     {
       "file": "EDC_07_Santander_2025-04.pdf",
@@ -520,8 +551,11 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 306,
-      "durationMs": 124,
-      "tiers": "T0✓"
+      "durationMs": 128,
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     },
     {
       "file": "EDC_08_Nu_2025-07.pdf",
@@ -582,8 +616,14 @@
       ],
       "expectedFlag": true,
       "rows": 468,
-      "durationMs": 82,
-      "tiers": "T0✗"
+      "durationMs": 92,
+      "tiers": "T0✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing)",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": [
+        "T3 fixture-missing",
+        "T4 fixture-missing"
+      ]
     },
     {
       "file": "EDC_09_HSBC_2026-03.pdf",
@@ -649,7 +689,10 @@
       "expectedFlag": false,
       "rows": 44,
       "durationMs": 61,
-      "tiers": "T0✓"
+      "tiers": "T0✓",
+      "costUsd": 0,
+      "agentTurns": 0,
+      "skipped": []
     }
   ]
 }

@@ -85,4 +85,15 @@ describe('validateStatement', () => {
     expect(check(s, 'reported-totals')?.passed).toBe(false);
     expect(r.passed).toBe(true);
   });
+
+  it('rejects malformed rows (invalid date, both or neither side)', () => {
+    expect(
+      check(statement([tx({ credit: 2_000, date: '2025-02-30' })]), 'rows-well-formed')?.passed,
+    ).toBe(false);
+    expect(check(statement([tx({ credit: 2_000, debit: 1 })]), 'rows-well-formed')?.passed).toBe(
+      false,
+    );
+    expect(check(statement([tx({})]), 'rows-well-formed')?.passed).toBe(false);
+    expect(check(statement([tx({ credit: 2_000 })]), 'rows-well-formed')?.passed).toBe(true);
+  });
 });
