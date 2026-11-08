@@ -141,6 +141,7 @@ tests/e2e           Playwright
 tests/load          Artillery
 docker/             Dockerfile (dev, api-runtime, web-runtime targets)
 docs/               SPEC, ADRs, eligibility policy, plan, dev log, harness
+.claude/            Claude Code harness: subagents, hooks, permissions (docs/harness)
 ```
 
 ## Documentation
