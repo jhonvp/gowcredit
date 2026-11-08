@@ -179,15 +179,21 @@ const toDecision = (d: DecisionOrmEntity): DecisionRecord => ({
   createdAt: d.createdAt,
 });
 
+/** Results stored before checks had a Spanish `message` fall back to their `detail`. */
+const withMessage = <T extends { detail: string; message?: string }>(c: T) => ({
+  ...c,
+  message: c.message ?? c.detail,
+});
+
 const toExtraction = (e: ExtractionOrmEntity): ExtractionRecord => ({
   documentId: e.documentId,
   kind: e.kind,
   resolvedBy: e.resolvedBy,
   needsReview: e.needsReview,
   statement: e.statement,
-  validation: e.validation,
+  validation: e.validation && { ...e.validation, checks: e.validation.checks.map(withMessage) },
   invoice: e.invoice,
-  invoiceChecks: e.invoiceChecks,
+  invoiceChecks: e.invoiceChecks?.map(withMessage) ?? null,
   attempts: e.attempts,
   costUsd: Number(e.costUsd),
   createdAt: e.createdAt,

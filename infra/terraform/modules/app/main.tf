@@ -171,6 +171,7 @@ locals {
     { name = "SMTP_URL", value = var.smtp_url },
     { name = "MAIL_FROM", value = var.mail_from },
     { name = "WEB_BASE_URL", value = var.web_base_url },
+    { name = "TRUST_PROXY_HOPS", value = "2" }, # CloudFront, then the ALB: req.ip is the client
     { name = "DD_ENV", value = var.environment },
     { name = "DD_SERVICE", value = "gowcredit" },
     { name = "DD_TRACE_ENABLED", value = "true" },

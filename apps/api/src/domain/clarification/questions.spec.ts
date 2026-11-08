@@ -36,9 +36,9 @@ describe('applyAnswers', () => {
     ).toThrow(InvalidAnswerError);
     expect(() =>
       applyAnswers({}, [{ code: 'RFC_CONFIRMATION', kind: 'text', text: 'sí' }]),
-    ).toThrow(/yes or no/);
+    ).toThrow(/sí o no/);
     expect(() => applyAnswers({}, [{ code: 'RECENT_STATEMENT', kind: 'text', text: 'x' }])).toThrow(
-      /uploading/,
+      /subiendo/,
     );
   });
 });

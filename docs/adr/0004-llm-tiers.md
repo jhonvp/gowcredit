@@ -21,6 +21,11 @@
   - A miss in replay mode skips the tier (reported in the eval); it never crashes the pipeline.
 - **Trust:** the LLM never decides eligibility. Its output must pass the same validators as every
   other tier, and a later tier replaces a candidate only if it fails fewer blocking checks.
+- **Flag, never fix, the document (added 2026-11-08).** A repair that makes the arithmetic pass by
+  moving rows from where the bank printed them, or by adding rows that only the summary shows, adds the
+  blocking check `rows-as-printed` (`domain/validation/repair-flags.ts`). The document then goes to
+  review (owner question + analyst). T4 reports the rows it reordered; summary-only rows are counted
+  for every tier. The T4 prompt (`t4-repair-statement@v2`) says which failures are the document's.
 
 **Why.** The evaluators must get identical results by following the README. Replaying recorded
 responses gives that guarantee. Running live on the hidden set is also supported and documented.
@@ -34,3 +39,24 @@ responses gives that guarantee. Running live on the hidden set is also supported
 | Key = file + section + prompt + model   | Key = hash of the whole canonical request   | Covers everything that changes the answer (input text, schema, agent history), so stale fixtures miss instead of replaying the wrong answer |
 | Failing section as text plus page image | Text only                                   | Page images are a follow-up (`get_page_image`); the dev set's failures are in text pages                                                    |
 | Prompts in `prompts/`                   | Prompts in code, versioned constants        | They ship with the API image and their version is part of the fixture key                                                                   |
+
+**What the first recording showed (2026-11-08).** With prompt v1, T4 made both known-anomaly
+documents pass. On Fondeadora it moved the interest and ISR rows earlier and re-dated them; on Nu it
+added the summary-only interest. Field accuracy was the same, but "known anomalies flagged" fell from
+2/2 to 0/2, and the decisions became QUALIFIES / DOES_NOT_QUALIFY instead of NEEDS_INFO. The agent was
+transparent in its notes, but the notes are not part of the decision. The guard above works whatever
+the model does; prompt v2 makes the agent stop earlier (Nu: 95 s → 8 s).
+
+**Addendum (2026-11-08): what the document prints beyond its movements.** The flag-never-fix rule stands
+for rows: no tier moves or invents them. Three cases are now resolved without asking the owner, always
+verified by the domain (`adjustStatement`, every tier):
+
+- **Internal transfers.** Mirror pairs (same date, amount and concept, opposite side) are marked `internal`
+  only if removing them makes the rows match the totals the bank printed. They stay visible but do not count.
+- **Summary-only amounts** (e.g. interest). T0 reads known labels; T3 reports `summaryItems` and T4 calls
+  `add_summary_item` for any other concept. They count only if they close the difference to the cent.
+- **Rows printed out of order.** A broken running balance is a notice when the statement reconciles and the
+  breaks are a few rows in the last 20% of the table. Anywhere else it stays blocking.
+
+Prompts are `t3-extract-statement@v2` and `t4-repair-statement@v3`. With these rules T0 resolves the whole
+development set, so the earlier fixtures were removed.

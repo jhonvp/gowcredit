@@ -19,7 +19,7 @@ export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 
 export class CaseNotFoundError extends Error {
   constructor(caseId: string) {
-    super(`Case ${caseId} not found`);
+    super(`Solicitud ${caseId} no encontrada`);
     this.name = 'CaseNotFoundError';
   }
 }
@@ -63,11 +63,16 @@ export class SubmitDocumentUseCase {
     opts: { supplierId: string | null; ownerEmail?: string | null; caseId?: string },
   ): Promise<CaseRecord> {
     const { caseId, supplierId } = opts;
-    if (file.bytes.byteLength === 0) throw new UnsupportedDocumentError('Empty file');
+    if (file.bytes.byteLength === 0) throw new UnsupportedDocumentError('El archivo está vacío');
     if (file.bytes.byteLength > MAX_DOCUMENT_BYTES)
-      throw new UnsupportedDocumentError(`File larger than ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB`);
+      throw new UnsupportedDocumentError(
+        `El archivo pesa más de ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB`,
+      );
     const kind = sniffKind(file.bytes);
-    if (!kind) throw new UnsupportedDocumentError('Only PDF statements and CFDI XML are accepted');
+    if (!kind)
+      throw new UnsupportedDocumentError(
+        'Solo se aceptan estados de cuenta en PDF y facturas CFDI en XML',
+      );
 
     if (caseId) {
       const existing = await this.cases.findCase(caseId);

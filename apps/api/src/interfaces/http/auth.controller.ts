@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, Inject, Post, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import type { LoginResponse, Me } from '@gowcredit/contracts';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../application/ports/auth.ports';
 import type { Principal } from '../../domain/auth/principal';
@@ -14,10 +15,13 @@ export class AuthController {
     @Inject(USER_REPOSITORY_PORT) private readonly users: UserRepositoryPort,
   ) {}
 
-  /** Body: { email, password } (validated by the local strategy). */
+  /**
+   * Body: { email, password } (validated by the local strategy). The throttler runs first, so failed
+   * attempts count too; over the limit the answer is 429 with Retry-After.
+   */
   @Post('login')
   @Public()
-  @UseGuards(AuthGuard('local'))
+  @UseGuards(ThrottlerGuard, AuthGuard('local'))
   @HttpCode(200)
   async login(@CurrentPrincipal() p: Principal): Promise<LoginResponse> {
     if (p.kind !== 'user') throw new Error('unreachable');

@@ -17,8 +17,8 @@
     "arithmetic": "opening + credits − debits = closing (25,367.29 + 630,180.06 − 648,748.74 = 6,798.61)",
     "transactionCount": "Totals reconcile; every row prints a balance."
   },
-  "knownAnomalies": [
-    "The interest and ISR rows are printed at the end of the table with balances from earlier in the month, so the running balance breaks at those 2 rows. The document itself is inconsistent; the expected behaviour is to flag it, not to \"fix\" it."
-  ],
-  "notes": []
+  "knownAnomalies": [],
+  "notes": [
+    "The interest and ISR rows are printed at the end of the table with balances from earlier in the month. The statement reconciles, so the broken chain is a notice, not a blocking failure."
+  ]
 }

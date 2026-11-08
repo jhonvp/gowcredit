@@ -50,6 +50,8 @@ export const TransactionSchema = z.object({
   credit: Cents,
   balance: Cents.nullable(),
   page: z.number().int(),
+  /** Transfer between the holder's own pockets: shown, but not income or spending. */
+  internal: z.boolean(),
 });
 export type TransactionView = z.infer<typeof TransactionSchema>;
 
@@ -66,6 +68,11 @@ export const ExtractionViewSchema = z.object({
     closingBalance: Cents.nullable(),
     totalCredits: Cents,
     totalDebits: Cents,
+    /** Printed only in the summary and part of the balance (e.g. interest). Signed. */
+    otherItems: z.array(
+      z.object({ concept: z.string(), amount: z.number().int(), description: z.string() }),
+    ),
+    internalTransfers: z.object({ pairs: z.number().int(), amount: Cents }),
   }),
   transactions: z.array(TransactionSchema),
   checks: z.array(ValidationCheckSchema),
@@ -244,6 +251,17 @@ export const ClarificationViewSchema = z.object({
   answeredAt: z.string().nullable(),
 });
 export type ClarificationView = z.infer<typeof ClarificationViewSchema>;
+
+/**
+ * POST /api/cases/:id/owner-link (analyst, only where OWNER_LINK_SHARING=true): a fresh magic link
+ * for the open owner request. It replaces the emailed link, which stops working; shown only once.
+ */
+export const OwnerLinkResponseSchema = z.object({
+  link: z.string().url(),
+  expiresAt: z.string(),
+  round: z.number().int(),
+});
+export type OwnerLinkResponse = z.infer<typeof OwnerLinkResponseSchema>;
 
 // ---- Analyst copilot (ADR 0010) ----
 export const CopilotRequestSchema = z.object({ question: z.string().trim().min(1).max(1000) });

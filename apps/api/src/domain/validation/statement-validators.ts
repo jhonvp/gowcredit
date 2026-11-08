@@ -1,4 +1,9 @@
-import { type BankStatement, totalCredits, totalDebits } from '../statement/bank-statement';
+import {
+  type BankStatement,
+  otherItemsTotal,
+  totalCredits,
+  totalDebits,
+} from '../statement/bank-statement';
 import { daysBetween, isIsoDate } from '../shared/iso-date';
 import { type Cents, formatMxn } from '../shared/money';
 
@@ -14,7 +19,9 @@ export type CheckId =
   | 'rows-reconcile'
   | 'running-balance'
   | 'dates-in-period'
-  | 'reported-totals';
+  | 'reported-totals'
+  /** Added by withRepairFlags (repair-flags.ts), never by validateStatement. */
+  | 'rows-as-printed';
 
 export type Section = 'summary' | 'transactions';
 
@@ -24,7 +31,13 @@ export interface CheckResult {
   passed: boolean;
   /** Blocking checks gate trust; non-blocking ones are reported only. */
   blocking: boolean;
+  /**
+   * For the LLM tiers and the eval report. T3/T4 prompts include it, so changing it changes the
+   * recorded fixtures' keys: keep it stable.
+   */
   detail: string;
+  /** The same result in Spanish, for people (web, emails). */
+  message: string;
 }
 
 export interface ValidationReport {
@@ -32,6 +45,13 @@ export interface ValidationReport {
   passed: boolean;
   failedSections: Section[];
 }
+
+const SUMMARY_FIELD_ES = {
+  periodStart: 'inicio del periodo',
+  periodEnd: 'fin del periodo',
+  openingBalance: 'saldo inicial',
+  closingBalance: 'saldo final',
+} as const;
 
 /** Reconciliation tolerance: 1.00 MXN (rounding in bank summaries). */
 export const RECONCILE_TOLERANCE: Cents = 100;
@@ -53,6 +73,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
     blocking: true,
     passed: missing.length === 0,
     detail: missing.length ? `missing: ${missing.join(', ')}` : 'all present',
+    message: missing.length
+      ? `Faltan: ${missing.map((k) => SUMMARY_FIELD_ES[k]).join(', ')}`
+      : 'Periodo y saldos presentes',
   });
 
   const periodOk =
@@ -67,6 +90,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
     detail: periodOk
       ? `${summary.periodStart} → ${summary.periodEnd}`
       : 'period missing or inverted',
+    message: periodOk
+      ? `Periodo ${summary.periodStart} → ${summary.periodEnd}`
+      : 'El periodo falta o termina antes de empezar',
   });
 
   checks.push({
@@ -75,6 +101,7 @@ export function validateStatement(s: BankStatement): ValidationReport {
     blocking: true,
     passed: transactions.length > 0,
     detail: `${transactions.length} rows`,
+    message: `${transactions.length} movimientos`,
   });
 
   // Every row: a real date, non-negative amounts, exactly one side. LLM tiers can emit anything,
@@ -98,6 +125,10 @@ export function validateStatement(s: BankStatement): ValidationReport {
         malformed === -1
           ? 'dates valid, one side per row'
           : `row ${malformed + 1} has an invalid date or not exactly one of debit/credit`,
+      message:
+        malformed === -1
+          ? 'Fechas válidas y un solo importe (cargo o abono) por movimiento'
+          : `El movimiento ${malformed + 1} tiene una fecha inválida o no tiene exactamente un cargo o un abono`,
     });
   }
 
@@ -106,27 +137,36 @@ export function validateStatement(s: BankStatement): ValidationReport {
     summary.closingBalance !== null &&
     transactions.length > 0
   ) {
-    const expected = summary.openingBalance + totalCredits(s) - totalDebits(s);
+    const others = otherItemsTotal(summary);
+    const expected = summary.openingBalance + totalCredits(s) - totalDebits(s) + others;
     const diff = expected - summary.closingBalance;
     checks.push({
       id: 'rows-reconcile',
       section: 'transactions',
       blocking: true,
       passed: Math.abs(diff) <= RECONCILE_TOLERANCE,
-      detail: `opening + credits − debits = ${formatMxn(expected)} vs closing ${formatMxn(summary.closingBalance)} (diff ${formatMxn(diff)})`,
+      detail: `opening + credits − debits${others ? ' + other items' : ''} = ${formatMxn(expected)} vs closing ${formatMxn(summary.closingBalance)} (diff ${formatMxn(diff)})`,
+      message: `Saldo inicial + abonos − cargos${others ? ' + otros' : ''} = ${formatMxn(expected)}; saldo final ${formatMxn(summary.closingBalance)} (diferencia ${formatMxn(diff)})`,
     });
   }
 
   const chain = runningBalanceBreaks(s);
   if (chain.checked > 0) {
+    const reconciles = checks.some((c) => c.id === 'rows-reconcile' && c.passed);
+    const onlyPrintingOrder = reconciles && breaksAreInTheTail(chain.breaks, transactions.length);
     checks.push({
       id: 'running-balance',
       section: 'transactions',
-      blocking: true,
+      blocking: !onlyPrintingOrder,
       passed: chain.breaks.length === 0,
       detail: chain.breaks.length
         ? `${chain.breaks.length}/${chain.checked} rows break the chain (first at row ${chain.breaks[0]})`
         : `${chain.checked} rows consistent`,
+      message: chain.breaks.length
+        ? onlyPrintingOrder
+          ? `Aviso, no es un error: ${chain.breaks.length} movimientos al final de la tabla traen un saldo impreso fuera de orden, y el saldo final sí cuadra`
+          : `${chain.breaks.length} de ${chain.checked} saldos por movimiento no cuadran (el primero en el movimiento ${chain.breaks[0]})`
+        : `Los ${chain.checked} saldos por movimiento cuadran`,
     });
   }
 
@@ -142,6 +182,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
       blocking: true,
       passed: out === 0,
       detail: out ? `${out} rows outside the period` : 'all rows inside the period',
+      message: out
+        ? `${out} movimientos fuera del periodo`
+        : 'Todos los movimientos dentro del periodo',
     });
   }
 
@@ -154,6 +197,12 @@ export function validateStatement(s: BankStatement): ValidationReport {
       blocking: false,
       passed: Math.abs(dc) <= RECONCILE_TOLERANCE && Math.abs(dd) <= RECONCILE_TOLERANCE,
       detail: `credits diff ${formatMxn(dc)}, debits diff ${formatMxn(dd)} (bank definitions of totals vary)`,
+      message:
+        Math.abs(dc) <= RECONCILE_TOLERANCE && Math.abs(dd) <= RECONCILE_TOLERANCE
+          ? 'Abonos y cargos coinciden con los totales impresos por el banco'
+          : dc === dd
+            ? `Aviso, no es un error: abonos y cargos suman ${formatMxn(dc)} más que los totales del banco, igual en ambos lados; suele indicar traspasos internos entre cuentas`
+            : `Aviso, no es un error: contra los totales impresos por el banco, los abonos difieren ${formatMxn(dc)} y los cargos ${formatMxn(dd)}`,
     });
   }
 
@@ -161,6 +210,17 @@ export function validateStatement(s: BankStatement): ValidationReport {
     ...new Set(checks.filter((c) => c.blocking && !c.passed).map((c) => c.section)),
   ] as Section[];
   return { checks, passed: failedSections.length === 0, failedSections };
+}
+
+/**
+ * Banks sometimes print interest and tax near the end of the table with balances from earlier in the
+ * month. That is a printing order, not a misread, when the statement still reconciles and the breaks
+ * are a few rows in the last part of the table. A break anywhere else stays blocking.
+ */
+function breaksAreInTheTail(breaks: readonly number[], rows: number): boolean {
+  const first = breaks[0];
+  if (first === undefined || breaks.length > Math.max(2, Math.floor(rows * 0.05))) return false;
+  return first > rows * 0.8;
 }
 
 /**

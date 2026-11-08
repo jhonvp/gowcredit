@@ -38,6 +38,7 @@ import { AnalystCopilotUseCase } from '../../application/use-cases/analyst-copil
 import { AnswerClarificationUseCase } from '../../application/use-cases/answer-clarification.use-case';
 import { DecideCaseUseCase } from '../../application/use-cases/decide-case.use-case';
 import { RequestClarificationUseCase } from '../../application/use-cases/request-clarification.use-case';
+import { ShareOwnerLinkUseCase } from '../../application/use-cases/share-owner-link.use-case';
 import { ExtractBankStatementUseCase } from '../../application/use-cases/extract-bank-statement.use-case';
 import { ProcessDocumentUseCase } from '../../application/use-cases/process-document.use-case';
 import { SubmitDocumentUseCase } from '../../application/use-cases/submit-document.use-case';
@@ -192,6 +193,23 @@ import { S3ObjectStorage } from '../storage/s3-object-storage';
     },
     MagicLinkStrategy,
     {
+      provide: ShareOwnerLinkUseCase,
+      inject: [
+        CLARIFICATION_REPOSITORY_PORT,
+        SECRET_TOKEN_PORT,
+        CLOCK_PORT,
+        LOGGER_PORT,
+        AppConfig,
+      ],
+      useFactory: (
+        requests: ClarificationRepositoryPort,
+        tokens: SecretTokenPort,
+        clock: ClockPort,
+        logger: LoggerPort,
+        config: AppConfig,
+      ) => new ShareOwnerLinkUseCase(requests, tokens, clock, logger, config.mail.webBaseUrl),
+    },
+    {
       provide: AnalystCopilotUseCase,
       inject: [CASE_REPOSITORY_PORT, CLARIFICATION_REPOSITORY_PORT, AGENT_PORT, LOGGER_PORT],
       useFactory: (
@@ -223,6 +241,7 @@ import { S3ObjectStorage } from '../storage/s3-object-storage';
   ],
   exports: [
     AnalystCopilotUseCase,
+    ShareOwnerLinkUseCase,
     AnswerClarificationUseCase,
     CLARIFICATION_REPOSITORY_PORT,
     SubmitDocumentUseCase,

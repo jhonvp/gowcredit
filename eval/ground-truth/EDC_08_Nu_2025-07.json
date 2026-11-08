@@ -17,8 +17,8 @@
     "arithmetic": "opening + credits − debits = closing (3,414.70 + 33,477.62 − 22,750.71 = 14,141.61)",
     "transactionCount": "Not verified: rows have no running balance and include internal transfers between the account and \"Cajitas\"."
   },
-  "knownAnomalies": [
-    "The movements table mixes internal Cajita transfers (in both directions) with real deposits and expenses, and the month's interest (18.24) is not a row. Row sums therefore differ from the bank's totals."
-  ],
-  "notes": []
+  "knownAnomalies": [],
+  "notes": [
+    "Internal Cajita transfers are printed twice with opposite signs (272 rows, 136 transfers) and are marked internal. The month's interest (18.24) is printed only in the summary and is reported under other items."
+  ]
 }

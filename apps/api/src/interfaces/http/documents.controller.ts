@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   StreamableFile,
   BadRequestException,
+  ConflictException,
   Body,
   Controller,
   ForbiddenException,
@@ -13,19 +14,23 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UnsupportedMediaTypeException,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import {
   type CaseSummaryView,
   type CaseView,
   type CopilotResponse,
   CopilotRequestSchema,
+  type OwnerLinkResponse,
   type SubmitDocumentResponse,
 } from '@gowcredit/contracts';
 import { AnalystCopilotUseCase } from '../../application/use-cases/analyst-copilot.use-case';
+import { ShareOwnerLinkUseCase } from '../../application/use-cases/share-owner-link.use-case';
+import { AppConfig } from '../../infrastructure/config/app-config';
 import {
   CASE_REPOSITORY_PORT,
   type CaseRepositoryPort,
@@ -39,10 +44,8 @@ import {
   type ClarificationRepositoryPort,
 } from '../../application/ports/clarification.ports';
 import {
-  CaseNotFoundError,
   MAX_DOCUMENT_BYTES,
   SubmitDocumentUseCase,
-  UnsupportedDocumentError,
 } from '../../application/use-cases/submit-document.use-case';
 import { canReadCase, type Principal, submittingSupplier } from '../../domain/auth/principal';
 import { CurrentPrincipal, Roles } from '../../infrastructure/auth/guards';
@@ -67,7 +70,29 @@ export class DocumentsController {
     @Inject(CLARIFICATION_REPOSITORY_PORT) private readonly requests: ClarificationRepositoryPort,
     @Inject(OBJECT_STORAGE_PORT) private readonly storage: ObjectStoragePort,
     private readonly copilot: AnalystCopilotUseCase,
+    private readonly shareLink: ShareOwnerLinkUseCase,
+    private readonly config: AppConfig,
   ) {}
+
+  /**
+   * A fresh owner magic link for the open request (where OWNER_LINK_SHARING=true). It replaces the
+   * emailed link, which stops working, and is returned once.
+   */
+  @Post('cases/:id/owner-link')
+  @Roles('analyst')
+  @HttpCode(200)
+  async ownerLink(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<OwnerLinkResponse> {
+    if (!this.config.mail.ownerLinkSharing)
+      throw new NotFoundException('Compartir el link del dueño está deshabilitado en este entorno');
+    if (p.kind !== 'user') throw new NotFoundException();
+    const out = await this.shareLink.execute(id, { userId: p.userId });
+    if (!out)
+      throw new ConflictException('Esta solicitud ya no tiene preguntas abiertas para el dueño');
+    return { link: out.link, expiresAt: out.expiresAt.toISOString(), round: out.round };
+  }
 
   /** Analyst copilot (ADR 0010): read-only answers about one case's decision and provenance. */
   @Post('cases/:id/copilot')
@@ -78,9 +103,10 @@ export class DocumentsController {
     @Body() body: unknown,
   ): Promise<CopilotResponse> {
     const parsed = CopilotRequestSchema.safeParse(body);
-    if (!parsed.success) throw new BadRequestException('question is required (max 1000 chars)');
+    if (!parsed.success)
+      throw new BadRequestException('Escriba una pregunta (máximo 1000 caracteres)');
     const out = await this.copilot.execute(id, parsed.data.question);
-    if (!out) throw new NotFoundException('case not found');
+    if (!out) throw new NotFoundException('Solicitud no encontrada');
     return out;
   }
 
@@ -89,14 +115,20 @@ export class DocumentsController {
   async file(
     @CurrentPrincipal() p: Principal,
     @Param('id', new ParseUUIDPipe()) id: string,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const doc = await this.cases.findDocument(id);
     const c = doc ? await this.cases.findCase(doc.caseId) : null;
-    if (!doc || !c || !canReadCase(p, c)) throw new NotFoundException('document not found');
+    if (!doc || !c || !canReadCase(p, c)) throw new NotFoundException('Documento no encontrado');
     const bytes = await this.storage.get(doc.storageKey);
+    const pdf = doc.mimeType === 'application/pdf';
+    // Supplier-controlled bytes: never let the browser sniff or run them. XML can carry XHTML
+    // <script>, so anything but a PDF is a sandboxed download, not an inline document.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (!pdf) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
     return new StreamableFile(Buffer.from(bytes), {
       type: doc.mimeType,
-      disposition: `inline; filename="${doc.originalName.replace(/[^\w.-]/g, '_')}"`,
+      disposition: `${pdf ? 'inline' : 'attachment'}; filename="${doc.originalName.replace(/[^\w.-]/g, '_')}"`,
     });
   }
 
@@ -156,31 +188,25 @@ export class DocumentsController {
     opts: { caseId?: string; ownerEmail?: string },
   ): Promise<SubmitDocumentResponse> {
     const supplierId = submittingSupplier(p);
-    if (!supplierId) throw new ForbiddenException('only suppliers can submit documents');
-    if (!file) throw new BadRequestException('multipart field "file" is required');
+    if (!supplierId) throw new ForbiddenException('Solo los proveedores pueden enviar documentos');
+    if (!file) throw new BadRequestException('Seleccione un archivo');
     const ownerEmail = opts.ownerEmail?.trim() || (p.kind === 'user' ? p.email : null);
     if (ownerEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ownerEmail))
-      throw new BadRequestException('ownerEmail is not a valid email');
-    try {
-      const updated = await this.submit.execute(
-        {
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          bytes: file.buffer,
-          sha256: createHash('sha256').update(file.buffer).digest('hex'),
-        },
-        { supplierId, ownerEmail, caseId: opts.caseId },
-      );
-      return {
-        caseId: updated.id,
-        documentId: updated.documents[updated.documents.length - 1]?.id as string,
-        status: updated.status,
-      };
-    } catch (e) {
-      if (e instanceof UnsupportedDocumentError) throw new UnsupportedMediaTypeException(e.message);
-      if (e instanceof CaseNotFoundError) throw new NotFoundException(e.message);
-      throw e;
-    }
+      throw new BadRequestException('El correo del dueño no es válido');
+    const updated = await this.submit.execute(
+      {
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        bytes: file.buffer,
+        sha256: createHash('sha256').update(file.buffer).digest('hex'),
+      },
+      { supplierId, ownerEmail, caseId: opts.caseId },
+    );
+    return {
+      caseId: updated.id,
+      documentId: updated.documents[updated.documents.length - 1]?.id as string,
+      status: updated.status,
+    };
   }
 
   @Get('cases/:id')
@@ -189,7 +215,7 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<CaseView> {
     const found = await this.cases.findCase(id);
-    if (!found || !canReadCase(p, found)) throw new NotFoundException('case not found');
+    if (!found || !canReadCase(p, found)) throw new NotFoundException('Solicitud no encontrada');
     return toCaseView(found, await this.requests.listByCase(found.id));
   }
 }

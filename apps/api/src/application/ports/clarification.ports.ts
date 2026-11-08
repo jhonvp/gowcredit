@@ -36,6 +36,8 @@ export interface ClarificationRepositoryPort {
     forAnalyst: ClarificationRecord['forAnalyst'],
   ): Promise<void>;
   markSuperseded(id: string): Promise<void>;
+  /** Replaces the magic-link token of an open request; false if it is no longer open. */
+  rotateToken(id: string, tokenHash: string, expiresAt: Date): Promise<boolean>;
 }
 export const CLARIFICATION_REPOSITORY_PORT = Symbol('ClarificationRepositoryPort');
 

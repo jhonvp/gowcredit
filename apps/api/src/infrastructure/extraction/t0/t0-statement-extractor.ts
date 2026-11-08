@@ -3,7 +3,10 @@ import type {
   StatementExtraction,
   StatementExtractorPort,
 } from '../../../application/ports/statement-extractor.port';
-import type { BankStatement } from '../../../domain/statement/bank-statement';
+import {
+  type BankStatement,
+  SUMMARY_ITEM_DESCRIPTION,
+} from '../../../domain/statement/bank-statement';
 import { detectBank } from './bank';
 import { findPeriod, type Period } from './dates';
 import { detectCurrency, findLabeledAmount } from './summary';
@@ -29,6 +32,7 @@ export class T0StatementExtractor implements StatementExtractorPort {
     const closing = findLabeledAmount(pages, 'closing');
     const credits = findLabeledAmount(pages, 'credits');
     const debits = findLabeledAmount(pages, 'debits');
+    const interest = findLabeledAmount(pages, 'interest');
 
     const table = period
       ? parseTransactions(pages, period, opening?.cents ?? null)
@@ -46,6 +50,15 @@ export class T0StatementExtractor implements StatementExtractorPort {
         closingBalance: closing?.cents ?? null,
         reportedCredits: credits?.cents ?? null,
         reportedDebits: debits?.cents ?? null,
+        printedExtras: interest
+          ? [
+              {
+                concept: 'Rendimientos del periodo',
+                amount: interest.cents,
+                description: SUMMARY_ITEM_DESCRIPTION,
+              },
+            ]
+          : [],
       },
       transactions: table.transactions,
       provenance: { summary: 'T0', transactions: 'T0' },

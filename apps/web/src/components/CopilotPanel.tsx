@@ -1,6 +1,10 @@
 import type { CopilotResponse } from '@gowcredit/contracts';
 import { type FormEvent, useState } from 'react';
-import { api, ApiError } from '../api';
+import { api } from '../api';
+import { errorText } from '../format';
+
+const usd = (n: number) =>
+  n.toLocaleString('es-MX', { style: 'currency', currency: 'USD', maximumFractionDigits: 4 });
 
 /** Analyst copilot (ADR 0010): read-only questions about this case's decision and provenance. */
 export function CopilotPanel({ token, caseId }: { token: string; caseId: string }) {
@@ -16,7 +20,7 @@ export function CopilotPanel({ token, caseId }: { token: string; caseId: string 
     try {
       setAnswer(await api.copilot(token, caseId, question));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'El copiloto no respondió');
+      setError(errorText(err, 'El copiloto no respondió. Intente de nuevo.'));
     } finally {
       setBusy(false);
     }
@@ -28,14 +32,16 @@ export function CopilotPanel({ token, caseId }: { token: string; caseId: string 
       <form onSubmit={ask} className="inline">
         <input
           type="text"
+          name="pregunta"
           aria-label="Pregunta al copiloto"
+          autoComplete="off"
+          className="grow"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           maxLength={1000}
-          style={{ flex: 1, padding: '6px 8px' }}
         />
         <button type="submit" disabled={busy || !question.trim()}>
-          Preguntar
+          {busy ? 'Preguntando…' : 'Preguntar'}
         </button>
       </form>
       {error && (
@@ -45,12 +51,12 @@ export function CopilotPanel({ token, caseId }: { token: string; caseId: string 
       )}
       {answer && (
         <div role="status">
-          <p>{answer.answer}</p>
+          <p className="answer">{answer.answer}</p>
           <p className="muted">
             {answer.by === 'agent'
-              ? `Respondido por el agente (Haiku, ${answer.turns} turnos, $${answer.costUsd.toFixed(4)})`
-              : 'Resumen determinístico de la traza (LLM no disponible)'}
-            {answer.citations.length > 0 && ` · ${answer.citations.join(', ')}`}
+              ? `Respondido por el agente de IA (${answer.turns} turnos, ${usd(answer.costUsd)})`
+              : 'Resumen automático de la decisión (modelo de IA no disponible)'}
+            {answer.citations.length > 0 && ` · Referencias: ${answer.citations.join(', ')}`}
           </p>
         </div>
       )}

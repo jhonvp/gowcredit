@@ -250,7 +250,7 @@ describe('ProcessDocumentUseCase', () => {
     const { submit } = setup(async () => outcome(false));
     const c = await submit.execute(file(), { supplierId: 's1' });
     await expect(submit.execute(file(), { supplierId: 's2', caseId: c.id })).rejects.toThrow(
-      /not found/,
+      /no encontrada/,
     );
   });
 

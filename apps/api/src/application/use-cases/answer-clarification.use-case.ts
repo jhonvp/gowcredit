@@ -22,7 +22,7 @@ export interface RawAnswer {
 
 export class ClarificationClosedError extends Error {
   constructor() {
-    super('This link was already used or has expired');
+    super('Este enlace ya fue usado o expiró');
     this.name = 'ClarificationClosedError';
   }
 }

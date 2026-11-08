@@ -1,7 +1,24 @@
 import type { CaseView } from '@gowcredit/contracts';
 import type { CaseRecord } from '../../application/ports/case-repository.port';
 import type { ClarificationRecord } from '../../application/ports/clarification.ports';
-import { totalCredits, totalDebits } from '../../domain/statement/bank-statement';
+import {
+  type BankStatement,
+  totalCredits,
+  totalDebits,
+} from '../../domain/statement/bank-statement';
+
+/** People read the Spanish `message`; the English `detail` stays for the LLM tiers and the eval. */
+const forPeople = <T extends { detail: string; message: string }>({
+  message,
+  detail: _modelFacing,
+  ...rest
+}: T) => ({ ...rest, detail: message });
+
+/** Each transfer is printed twice, so half of the marked rows is the number of transfers. */
+const internalTransfers = (s: BankStatement) => {
+  const rows = s.transactions.filter((t) => t.internal);
+  return { pairs: rows.length / 2, amount: rows.reduce((a, t) => a + t.credit, 0) };
+};
 
 /** Maps the application record to the public contract (packages/contracts). */
 export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] = []): CaseView {
@@ -33,7 +50,7 @@ export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] 
               transferredTaxes: inv.invoice.transferredTaxes,
               withheldTaxes: inv.invoice.withheldTaxes,
               total: inv.invoice.total,
-              checks: inv.invoiceChecks ?? [],
+              checks: (inv.invoiceChecks ?? []).map(forPeople),
               extractedAt: inv.createdAt.toISOString(),
             }
           : null,
@@ -52,6 +69,8 @@ export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] 
                   closingBalance: e.statement.summary.closingBalance,
                   totalCredits: totalCredits(e.statement),
                   totalDebits: totalDebits(e.statement),
+                  otherItems: e.statement.summary.otherItems ?? [],
+                  internalTransfers: internalTransfers(e.statement),
                 },
                 transactions: e.statement.transactions.map((t) => ({
                   date: t.date,
@@ -60,8 +79,9 @@ export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] 
                   credit: t.credit,
                   balance: t.balance,
                   page: t.page,
+                  internal: t.internal === true,
                 })),
-                checks: e.validation.checks,
+                checks: e.validation.checks.map(forPeople),
                 attempts: e.attempts.map((a) => ({
                   tier: a.tier,
                   passed: a.passed,

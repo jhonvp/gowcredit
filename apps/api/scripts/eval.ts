@@ -11,7 +11,7 @@ import type { StatementExtractorPort } from '../src/application/ports/statement-
 import { ExtractBankStatementUseCase } from '../src/application/use-cases/extract-bank-statement.use-case';
 import { decide, type Outcome } from '../src/domain/eligibility/engine';
 import { formatMxn, toCents } from '../src/domain/shared/money';
-import { totalCredits, totalDebits } from '../src/domain/statement/bank-statement';
+import { otherItemsTotal, totalCredits, totalDebits } from '../src/domain/statement/bank-statement';
 import { T3LlmStatementExtractor } from '../src/infrastructure/extraction/llm/t3-llm-statement-extractor';
 import { T4RepairAgentExtractor } from '../src/infrastructure/extraction/llm/t4-repair-agent-extractor';
 import { T1OcrStatementExtractor } from '../src/infrastructure/extraction/ocr/t1-ocr-statement-extractor';
@@ -126,9 +126,10 @@ async function main(): Promise<void> {
       periodEnd: s.summary.periodEnd,
       openingBalance: s.summary.openingBalance,
       closingBalance: s.summary.closingBalance,
-      totalCredits: s.transactions.length ? totalCredits(s) : null,
+      // The bank's credits include what it prints only in the summary (Nu's interest).
+      totalCredits: s.transactions.length ? totalCredits(s) + otherItemsTotal(s.summary) : null,
       totalDebits: s.transactions.length ? totalDebits(s) : null,
-      transactionCount: s.transactions.length,
+      transactionCount: s.transactions.filter((t) => !t.internal).length,
     };
     const scored = FIELDS.filter((f) => gt[f] !== null).map((field) => {
       const exp = MONEY.has(field) ? toCents(gt[field] as number) : gt[field];
