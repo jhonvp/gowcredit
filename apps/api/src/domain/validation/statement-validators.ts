@@ -187,7 +187,12 @@ export function validateStatement(s: BankStatement): ValidationReport {
       blocking: false,
       passed: Math.abs(dc) <= RECONCILE_TOLERANCE && Math.abs(dd) <= RECONCILE_TOLERANCE,
       detail: `credits diff ${formatMxn(dc)}, debits diff ${formatMxn(dd)} (bank definitions of totals vary)`,
-      message: `Contra los totales impresos por el banco: abonos difieren ${formatMxn(dc)}, cargos ${formatMxn(dd)} (cada banco define sus totales distinto)`,
+      message:
+        Math.abs(dc) <= RECONCILE_TOLERANCE && Math.abs(dd) <= RECONCILE_TOLERANCE
+          ? 'Abonos y cargos coinciden con los totales impresos por el banco'
+          : dc === dd
+            ? `Aviso, no es un error: abonos y cargos suman ${formatMxn(dc)} más que los totales del banco, igual en ambos lados; suele indicar traspasos internos entre cuentas`
+            : `Aviso, no es un error: contra los totales impresos por el banco, los abonos difieren ${formatMxn(dc)} y los cargos ${formatMxn(dd)}`,
     });
   }
 

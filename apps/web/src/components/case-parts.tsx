@@ -139,7 +139,14 @@ function Checks({
     <ul className="checks">
       {checks.map((c) => (
         <li key={c.id} className={c.passed ? 'ok' : c.blocking ? 'bad' : 'warn'}>
-          <Mark passed={c.passed} /> <strong>{CHECK_LABEL[c.id] ?? c.id}:</strong> {c.detail}
+          {c.passed || c.blocking ? (
+            <Mark passed={c.passed} />
+          ) : (
+            <>
+              <span aria-hidden="true">⚠</span> <span className="sr-only">Aviso</span>
+            </>
+          )}{' '}
+          <strong>{CHECK_LABEL[c.id] ?? c.id}:</strong> {c.detail}
         </li>
       ))}
     </ul>
