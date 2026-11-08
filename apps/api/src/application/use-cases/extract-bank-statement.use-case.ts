@@ -1,5 +1,10 @@
 import type { BankStatement, Tier } from '../../domain/statement/bank-statement';
 import {
+  type RepairFlags,
+  summaryRowCount,
+  withRepairFlags,
+} from '../../domain/validation/repair-flags';
+import {
   type ValidationReport,
   validateStatement,
 } from '../../domain/validation/statement-validators';
@@ -30,7 +35,10 @@ export interface ExtractionOutcome {
   attempts: TierAttempt[];
   /** LLM spend for this document across tiers (replayed fixtures report the original call's cost). */
   costUsd: number;
-  /** True when no tier produced a statement that passes the validators (→ owner clarification). */
+  /**
+   * True when no tier produced a statement that passes the validators, including the
+   * `rows-as-printed` check for repairs that reorder rows or add summary-only rows (→ review).
+   */
   needsReview: boolean;
 }
 
@@ -51,7 +59,7 @@ export class ExtractBankStatementUseCase {
     if (this.tiers.length === 0) throw new Error('No extraction tiers configured');
     let text = await this.text.extract(pdf);
     const attempts: TierAttempt[] = [];
-    let best: { statement: BankStatement; validation: ValidationReport; tier: Tier } | null = null;
+    let best: Candidate | null = null;
 
     for (const tier of this.tiers) {
       const started = Date.now();
@@ -75,7 +83,11 @@ export class ExtractBankStatementUseCase {
         continue;
       }
       if (out.text) text = out.text;
-      const validation = validateStatement(out.statement);
+      const flags: RepairFlags = {
+        movedRows: out.reorderedRows ?? 0,
+        summaryRows: summaryRowCount(out.statement.transactions),
+      };
+      const validation = validate(out.statement, flags);
       const attempt: TierAttempt = {
         tier: tier.tier,
         passed: validation.passed,
@@ -93,7 +105,7 @@ export class ExtractBankStatementUseCase {
         durationMs: attempt.durationMs,
         costUsd,
       });
-      best = pickBest(best, { statement: out.statement, validation, tier: tier.tier });
+      best = pickBest(best, { statement: out.statement, validation, tier: tier.tier, flags });
       if (best.validation.passed) break;
     }
 
@@ -112,7 +124,16 @@ export class ExtractBankStatementUseCase {
 const failures = (v: ValidationReport): number =>
   v.checks.filter((c) => c.blocking && !c.passed).length;
 
-type Candidate = { statement: BankStatement; validation: ValidationReport; tier: Tier };
+/** Repair flags describe the transactions section, so they travel with it when sections are mixed. */
+type Candidate = {
+  statement: BankStatement;
+  validation: ValidationReport;
+  tier: Tier;
+  flags: RepairFlags;
+};
+
+const validate = (s: BankStatement, flags: RepairFlags): ValidationReport =>
+  withRepairFlags(validateStatement(s), flags);
 
 /**
  * Per-section escalation (ADR 0002): besides the new tier's output, try the hybrids that keep one
@@ -132,7 +153,8 @@ function pickBest(best: Candidate | null, next: Candidate): Candidate {
         transactions: rowsFrom.statement.provenance.transactions,
       },
     };
-    return { statement, validation: validateStatement(statement), tier: next.tier };
+    const { flags } = rowsFrom;
+    return { statement, validation: validate(statement, flags), tier: next.tier, flags };
   };
   const options = [best, next, mix(best, next), mix(next, best)];
   return options.reduce((winner, o) =>

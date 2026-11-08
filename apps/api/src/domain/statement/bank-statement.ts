@@ -41,6 +41,14 @@ export interface BankStatement {
   provenance: { summary: Tier; transactions: Tier };
 }
 
+/**
+ * Prefix of rows that an LLM tier took from the summary section because the statement does not print
+ * them as movements (e.g. interest shown only in the summary). Kept in the description so analysts see it.
+ */
+export const SUMMARY_ROW_PREFIX = '[resumen] ';
+export const isSummaryRow = (t: Transaction): boolean =>
+  t.description.startsWith(SUMMARY_ROW_PREFIX);
+
 export const totalCredits = (s: BankStatement): Cents =>
   s.transactions.reduce((a, t) => a + t.credit, 0);
 export const totalDebits = (s: BankStatement): Cents =>
