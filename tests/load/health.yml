@@ -1,5 +1,5 @@
-# Artillery load test — baseline for the API. Scenarios for upload/case endpoints are added as they land.
-# Run: make test-load (stack must be up). Fails the run if thresholds are not met.
+# Artillery baseline (health only). The main scenario is api.yml.
+# Run: make test-load LOAD_SCRIPT=health.yml (stack must be up). Fails the run if thresholds are not met.
 config:
   # Override with: artillery run --target <url> health.yml (make test-load LOAD_TARGET=...)
   target: http://api:3000

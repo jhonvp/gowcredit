@@ -9,7 +9,7 @@ up:            ## start the full stack (api, web, postgres, floci, mailpit)
 down:
 	$(DC) down
 logs:
-	$(DC) logs -f api web
+	$(DC) logs -f api worker web
 ps:
 	$(DC) ps
 sh:            ## shell in a tools container
@@ -24,9 +24,9 @@ eval-record:   ## call the API for requests without a fixture and record them (n
 	$(DC) run --rm -e LLM_MODE=record tools pnpm --filter @gowcredit/api eval
 test:          ## unit tests (no services needed)
 	$(RUN) pnpm test
-test-integration: ## API + real Postgres (separate gowcredit_test db)
-	$(DC) up -d postgres
-	$(DC) run --rm -e DATABASE_URL=postgres://gowcredit:gowcredit@postgres:5432/gowcredit_test -e LOG_LEVEL=warn -e LOG_PRETTY=false tools pnpm --filter @gowcredit/api test:integration
+test-integration: ## API + real Postgres (gowcredit_test db) + Floci S3/SQS (test bucket/queue)
+	$(DC) up -d postgres floci
+	$(DC) run --rm -e DATABASE_URL=postgres://gowcredit:gowcredit@postgres:5432/gowcredit_test -e S3_BUCKET=gowcredit-documents-test -e SQS_QUEUE_NAME=gowcredit-extract-test -e AWS_BOOTSTRAP=true -e LOG_LEVEL=warn -e LOG_PRETTY=false tools pnpm --filter @gowcredit/api test:integration
 test-e2e:      ## browser E2E with Playwright against the running stack (make up first)
 	$(DC) --profile test run --rm e2e
 test-load:     ## Artillery load test against the running stack (make up first)

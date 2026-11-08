@@ -28,3 +28,9 @@ failed. Every field records the tier that produced it.
 - HSBC's text layer is EBCDIC → the quality gate detects it, T0 repairs it with a cp500 decode,
   and whatever is still broken escalates.
 - Textless pages in Banamex and BBVA are ads → the page classifier skips them and OCR never runs.
+
+**Implementation note (2026-11-07).** Per-section escalation is done by mixing candidates: when a later
+tier runs, the use case also scores the hybrids "earlier summary + new rows" and "new summary + earlier
+rows" and keeps the variant with the fewest blocking failures (ties keep the earlier candidate).
+Provenance records the tier of each section. The worker runs one document per SQS message; duplicate
+deliveries are absorbed by a compare-and-set on the case status.

@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "dev:worker": "nest start --watch --entryFile worker",
     "start": "node dist/main.js",
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -19,6 +20,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "@aws-sdk/client-s3": "^3.1164.0",
+    "@aws-sdk/client-sqs": "^3.1164.0",
     "@gowcredit/contracts": "workspace:*",
     "@nestjs/common": "^12.4.0",
     "@nestjs/config": "^12.1.1",

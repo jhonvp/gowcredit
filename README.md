@@ -16,7 +16,7 @@ run in containers.
 ## Quick start
 
 ```bash
-make up        # builds and starts api, web, postgres, floci (local AWS), mailpit
+make up        # builds and starts api, worker, web, postgres, floci (local AWS), mailpit
 make smoke     # checks every service
 ```
 
@@ -29,15 +29,28 @@ make smoke     # checks every service
 
 ## Tests
 
-| Level       | Tool                                                  | Command                 | Needs running stack  |
-| ----------- | ----------------------------------------------------- | ----------------------- | -------------------- |
-| Unit        | Vitest                                                | `make test`             | no                   |
-| Integration | Vitest + supertest + real Postgres (`gowcredit_test`) | `make test-integration` | no (starts postgres) |
-| E2E         | Playwright (Chromium)                                 | `make test-e2e`         | yes (`make up`)      |
-| Load        | Artillery (p95 < 200 ms, p99 < 500 ms)                | `make test-load`        | yes (`make up`)      |
-| All of it   |                                                       | `make check-all`        | starts it            |
+| Level       | Tool                                                                 | Command                 | Needs running stack         |
+| ----------- | -------------------------------------------------------------------- | ----------------------- | --------------------------- |
+| Unit        | Vitest                                                               | `make test`             | no                          |
+| Integration | Vitest + supertest + real Postgres (`gowcredit_test`) + Floci S3/SQS | `make test-integration` | no (starts postgres, floci) |
+| E2E         | Playwright (Chromium)                                                | `make test-e2e`         | yes (`make up`)             |
+| Load        | Artillery: health, uploads, case reads (p95 < 200 ms, p99 < 500 ms)  | `make test-load`        | yes (`make up`)             |
+| All of it   |                                                                      | `make check-all`        | starts it                   |
 
 `make check` runs lint, typecheck, unit and integration tests, which is what CI runs on every PR.
+
+## Try it: upload a statement
+
+```bash
+curl -F "file=@facturas/EDC_02_Hey_2025-04.pdf;type=application/pdf" localhost:3000/api/documents
+# → 202 {"caseId": "...", "documentId": "...", "status": "RECEIVED"}
+curl localhost:3000/api/cases/<caseId>
+# → status EXTRACTED (or AWAITING_OWNER when the validators fail), with the extraction,
+#   the checks and every tier attempt
+```
+
+The API stores the file in S3 (Floci) and queues a job on SQS; the `worker` service runs the
+cascade and writes the result to Postgres (`make logs` to watch it).
 
 ## Extraction eval and LLM modes
 

@@ -9,6 +9,7 @@ check() {
 }
 echo "Smoke test:"
 check "api health"  http://api:3000/health
+check "api cases"   http://api:3000/api/cases/00000000-0000-4000-8000-000000000000 404
 check "web"         http://web:5173/
 check "web → api"   http://web:5173/api/health 404
 check "floci"       http://floci:4566/_localstack/health
