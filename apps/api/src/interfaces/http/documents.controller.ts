@@ -104,7 +104,7 @@ export class DocumentsController {
   ): Promise<CopilotResponse> {
     const parsed = CopilotRequestSchema.safeParse(body);
     if (!parsed.success)
-      throw new BadRequestException('Escribe una pregunta (máximo 1000 caracteres)');
+      throw new BadRequestException('Escriba una pregunta (máximo 1000 caracteres)');
     const out = await this.copilot.execute(id, parsed.data.question);
     if (!out) throw new NotFoundException('Solicitud no encontrada');
     return out;
@@ -189,7 +189,7 @@ export class DocumentsController {
   ): Promise<SubmitDocumentResponse> {
     const supplierId = submittingSupplier(p);
     if (!supplierId) throw new ForbiddenException('Solo los proveedores pueden enviar documentos');
-    if (!file) throw new BadRequestException('Selecciona un archivo');
+    if (!file) throw new BadRequestException('Seleccione un archivo');
     const ownerEmail = opts.ownerEmail?.trim() || (p.kind === 'user' ? p.email : null);
     if (ownerEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ownerEmail))
       throw new BadRequestException('El correo del dueño no es válido');

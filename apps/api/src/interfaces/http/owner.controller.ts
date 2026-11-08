@@ -89,7 +89,7 @@ export class OwnerController {
     @UploadedFile() file?: MulterFile,
   ): Promise<SubmitDocumentResponse> {
     if (p.kind !== 'owner') throw new NotFoundException();
-    if (!file) throw new BadRequestException('Selecciona un archivo');
+    if (!file) throw new BadRequestException('Seleccione un archivo');
     const c = await this.cases.findCase(p.caseId);
     if (!c) throw new NotFoundException();
     const updated = await this.submit.execute(
