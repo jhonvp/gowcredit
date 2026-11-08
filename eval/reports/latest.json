@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T19:46:07.757Z",
+  "generatedAt": "2026-11-08T18:12:18.647Z",
   "pipeline": "T0 → T1 → T2 → T3 → T4 (LLM_MODE=replay)",
   "documents": 9,
   "fieldAccuracy": {
@@ -13,15 +13,11 @@
     "flagged": 2,
     "falseFlags": []
   },
-  "llmCostUsd": 0,
-  "agentTurns": 0,
+  "llmCostUsd": 0.2681228,
+  "agentTurns": 7,
   "llmSkips": [
     "EDC_03_Fondeadora_2025-10.pdf: T1 no-pages-need-ocr",
-    "EDC_03_Fondeadora_2025-10.pdf: T3 fixture-missing",
-    "EDC_03_Fondeadora_2025-10.pdf: T4 fixture-missing",
-    "EDC_08_Nu_2025-07.pdf: T1 no-pages-need-ocr",
-    "EDC_08_Nu_2025-07.pdf: T3 fixture-missing",
-    "EDC_08_Nu_2025-07.pdf: T4 fixture-missing"
+    "EDC_08_Nu_2025-07.pdf: T1 no-pages-need-ocr"
   ],
   "byField": [
     {
@@ -134,7 +130,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 37,
-      "durationMs": 162,
+      "durationMs": 116,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
@@ -207,7 +203,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 282,
-      "durationMs": 317,
+      "durationMs": 282,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
@@ -282,14 +278,12 @@
       ],
       "expectedFlag": true,
       "rows": 41,
-      "durationMs": 39,
-      "tiers": "T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing)",
-      "costUsd": 0,
-      "agentTurns": 0,
+      "durationMs": 50,
+      "tiers": "T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3✗ → T4✗",
+      "costUsd": 0.1640192,
+      "agentTurns": 4,
       "skipped": [
-        "T1 no-pages-need-ocr",
-        "T3 fixture-missing",
-        "T4 fixture-missing"
+        "T1 no-pages-need-ocr"
       ],
       "decision": {
         "atPeriodEnd": "NEEDS_INFO ← STATEMENT_UNREADABLE",
@@ -359,7 +353,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 93,
-      "durationMs": 137,
+      "durationMs": 139,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
@@ -432,7 +426,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 161,
-      "durationMs": 67,
+      "durationMs": 70,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
@@ -505,7 +499,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 217,
-      "durationMs": 46,
+      "durationMs": 42,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
@@ -578,7 +572,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 306,
-      "durationMs": 138,
+      "durationMs": 139,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
@@ -647,14 +641,12 @@
       ],
       "expectedFlag": true,
       "rows": 468,
-      "durationMs": 183,
-      "tiers": "T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3⊘ (fixture-missing) → T4⊘ (fixture-missing)",
-      "costUsd": 0,
-      "agentTurns": 0,
+      "durationMs": 210,
+      "tiers": "T0✗ → T1⊘ (no-pages-need-ocr) → T2✗ → T3✗ → T4✗",
+      "costUsd": 0.10410359999999999,
+      "agentTurns": 3,
       "skipped": [
-        "T1 no-pages-need-ocr",
-        "T3 fixture-missing",
-        "T4 fixture-missing"
+        "T1 no-pages-need-ocr"
       ],
       "decision": {
         "atPeriodEnd": "NEEDS_INFO ← STATEMENT_UNREADABLE",
@@ -724,7 +716,7 @@
       "failedChecks": [],
       "expectedFlag": false,
       "rows": 44,
-      "durationMs": 72,
+      "durationMs": 68,
       "tiers": "T0✓",
       "costUsd": 0,
       "agentTurns": 0,
