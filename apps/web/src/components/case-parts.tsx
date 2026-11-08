@@ -4,8 +4,9 @@ import type {
   DecisionView,
   DocumentView,
   ExtractionTier,
+  ExtractionView,
 } from '@gowcredit/contracts';
-import { memo } from 'react';
+import { Fragment, memo } from 'react';
 import {
   CHECK_LABEL,
   CLARIFICATION_STATUS_LABEL,
@@ -153,6 +154,58 @@ function Checks({
   );
 }
 
+const INTERNAL_DESCRIPTION =
+  'Movimientos entre las cuentas del mismo titular. El banco los imprime dos veces con signo contrario; no son ingresos ni gastos, así que no cuentan en abonos, cargos ni en la evaluación.';
+
+/** What changes the balance without being income or spending, with its explanation. */
+function OtherAmounts({
+  summary,
+  tier,
+}: {
+  summary: ExtractionView['summary'];
+  tier: ExtractionTier;
+}) {
+  const { otherItems, internalTransfers } = summary;
+  if (otherItems.length === 0 && internalTransfers.pairs === 0) return null;
+  const border = { borderLeft: `4px solid ${TIER[tier].color}` };
+  return (
+    <section aria-label="Otros">
+      <h3 className="h5">Otros (no cuentan como abonos ni cargos)</h3>
+      <dl className="fields">
+        {otherItems.map((o) => (
+          <Fragment key={o.concept}>
+            <dt>{o.concept}</dt>
+            <dd style={border}>{money(o.amount)}</dd>
+          </Fragment>
+        ))}
+        {internalTransfers.pairs > 0 && (
+          <>
+            <dt>Traspasos internos</dt>
+            <dd style={border}>
+              {internalTransfers.pairs} traspasos · {money(internalTransfers.amount)}
+            </dd>
+          </>
+        )}
+      </dl>
+      <details>
+        <summary>Ver detalle de estos conceptos</summary>
+        <ul>
+          {otherItems.map((o) => (
+            <li key={o.concept}>
+              <strong>{o.concept}:</strong> {o.description}
+            </li>
+          ))}
+          {internalTransfers.pairs > 0 && (
+            <li>
+              <strong>Traspasos internos:</strong> {INTERNAL_DESCRIPTION}
+            </li>
+          )}
+        </ul>
+      </details>
+    </section>
+  );
+}
+
 /** Extracted fields coloured by the tier that produced each section, the cascade and the checks. */
 export const ExtractionPanel = memo(function ExtractionPanel({
   doc,
@@ -222,8 +275,13 @@ export const ExtractionPanel = memo(function ExtractionPanel({
         {field('Saldo final', money(s.closingBalance), e.provenance.summary)}
         {field('Abonos (suma de filas)', money(s.totalCredits), e.provenance.transactions)}
         {field('Cargos (suma de filas)', money(s.totalDebits), e.provenance.transactions)}
-        {field('Movimientos', String(e.transactions.length), e.provenance.transactions)}
+        {field(
+          'Movimientos',
+          String(e.transactions.length - s.internalTransfers.pairs * 2),
+          e.provenance.transactions,
+        )}
       </dl>
+      <OtherAmounts summary={s} tier={e.provenance.summary} />
       {analyst && (
         <>
           <h3 className="h5">Cascada de extracción</h3>
@@ -266,9 +324,12 @@ export const ExtractionPanel = memo(function ExtractionPanel({
                 </thead>
                 <tbody>
                   {e.transactions.slice(0, MAX_ROWS).map((t, i) => (
-                    <tr key={i}>
+                    <tr key={i} className={t.internal ? 'internal' : undefined}>
                       <td className="nowrap">{dateOnly(t.date)}</td>
-                      <td className="break">{t.description}</td>
+                      <td className="break">
+                        {t.description}{' '}
+                        {t.internal && <span className="pill">Traspaso interno</span>}
+                      </td>
                       <td className="num">{t.debit ? money(t.debit) : ''}</td>
                       <td className="num">{t.credit ? money(t.credit) : ''}</td>
                       <td className="num">{money(t.balance)}</td>

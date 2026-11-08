@@ -414,3 +414,7 @@ legend {
   font-weight: 600;
   padding: 0 4px;
 }
+
+.rows tr.internal td {
+  color: #52667a;
+}
