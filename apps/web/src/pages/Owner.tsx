@@ -7,7 +7,8 @@ import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api';
-import { OUTCOME_LABEL, STATUS_LABEL } from '../format';
+import { dateTime, errorText, OUTCOME_LABEL, STATUS_LABEL } from '../format';
+import { useDocumentTitle } from '../useDocumentTitle';
 
 type Values = Record<string, { value?: string | boolean; text?: string; file?: File }>;
 
@@ -31,6 +32,7 @@ export function OwnerPage() {
   const [values, setValues] = useState<Values>({});
   const [result, setResult] = useState<OwnerAnswerResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  useDocumentTitle('Información pendiente');
   const q = useQuery<OwnerRequestView>({
     queryKey: ['owner-request', token],
     queryFn: () => api.owner.request(token),
@@ -45,7 +47,6 @@ export function OwnerPage() {
     : q.isError
       ? 'No pudimos abrir su solicitud.'
       : null;
-  const error = submitError ?? loadError;
 
   const set = (code: string, patch: Values[string]) =>
     setValues((v) => ({ ...v, [code]: { ...v[code], ...patch } }));
@@ -64,9 +65,14 @@ export function OwnerPage() {
         .filter((q) => q.type !== 'upload_document')
         .map((q) => ({ code: q.code, value: values[q.code]?.value, text: values[q.code]?.text }))
         .filter((a) => a.value !== undefined || (a.text ?? '').trim() !== '');
+      const hasFiles = request.questions.some((q) => values[q.code]?.file);
+      if (answers.length === 0 && !hasFiles) {
+        setSubmitError('Responda al menos una pregunta antes de enviar.');
+        return;
+      }
       setResult(await api.owner.answer(token, { answers }));
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'No pudimos enviar sus respuestas.');
+      setSubmitError(errorText(err, 'No pudimos enviar sus respuestas. Intente de nuevo.'));
     } finally {
       setBusy(false);
     }
@@ -89,12 +95,15 @@ export function OwnerPage() {
 
   return (
     <main className="narrow">
-      <h1>GowCredit — información pendiente</h1>
-      {error && (
+      <h1>
+        <span translate="no">GowCredit</span> — información pendiente
+      </h1>
+      {loadError && (
         <p className="error" role="alert">
-          {error}
+          {loadError}
         </p>
       )}
+      {!request && !loadError && <p className="muted">Cargando sus preguntas…</p>}
       {request && (
         <form className="card" onSubmit={submit}>
           {request.questions.map((q) => (
@@ -105,7 +114,7 @@ export function OwnerPage() {
                   Fecha
                   <input
                     type="date"
-                    aria-label={`Respuesta ${q.code}`}
+                    name={`${q.code}-fecha`}
                     onChange={(e) => set(q.code, { value: e.target.value || undefined })}
                   />
                 </label>
@@ -134,7 +143,8 @@ export function OwnerPage() {
                 <input
                   type="file"
                   accept=".pdf,.xml"
-                  aria-label={`Documento ${q.code}`}
+                  aria-label="Documento"
+                  name={q.code}
                   onChange={(e) => set(q.code, { file: e.target.files?.[0] })}
                 />
               )}
@@ -144,6 +154,7 @@ export function OwnerPage() {
                     ? 'Explicación'
                     : 'O escríbalo con sus palabras'}
                   <textarea
+                    name={`${q.code}-texto`}
                     rows={q.type === 'explain_discrepancy' ? 4 : 1}
                     onChange={(e) => set(q.code, { text: e.target.value })}
                   />
@@ -151,13 +162,17 @@ export function OwnerPage() {
               )}
             </fieldset>
           ))}
+          {submitError && (
+            <p className="error" role="alert">
+              {submitError}
+            </p>
+          )}
           <button type="submit" disabled={busy}>
-            Enviar respuestas
+            {busy ? 'Enviando…' : 'Enviar respuestas'}
           </button>
           {request.expiresAt && (
             <p className="muted">
-              El enlace vence el {new Date(request.expiresAt).toLocaleDateString('es-MX')} y es de
-              un solo uso.
+              El enlace vence el {dateTime(request.expiresAt)} y es de un solo uso.
             </p>
           )}
         </form>

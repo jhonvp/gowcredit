@@ -84,7 +84,7 @@ test('supplier → owner clarification → decision → analyst', async ({ page 
   await page.goto(`/owner#${token}`);
   await expect(page.getByText(/fecha de vencimiento/)).toBeVisible();
   const due = new Date(Date.now() + 45 * 86_400_000).toISOString().slice(0, 10);
-  await page.getByLabel('Respuesta INVOICE_DUE_DATE').fill(due);
+  await page.getByLabel('Fecha', { exact: true }).fill(due);
   await page.getByRole('button', { name: 'Enviar respuestas' }).click();
   await expect(page.getByRole('status')).toContainText('Resultado: Califica');
 
@@ -101,7 +101,7 @@ test('supplier → owner clarification → decision → analyst', async ({ page 
   await expect(page.getByRole('region', { name: 'Decisión' })).toContainText('Califica');
   await expect(page.getByRole('region', { name: 'Decisión' })).toContainText('Adelanto sugerido');
   await expect(page.getByText('resuelto por')).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Aclaraciones' })).toContainText('answered');
+  await expect(page.getByRole('region', { name: 'Aclaraciones' })).toContainText('Respondida');
 
   // Copilot: in replay mode without fixtures it answers from the decision trace.
   await page.getByRole('button', { name: 'Preguntar' }).click();

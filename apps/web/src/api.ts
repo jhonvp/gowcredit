@@ -35,6 +35,13 @@ export class ApiError extends Error {
   }
 }
 
+let sessionExpired: () => void = () => undefined;
+
+/** Called when the API rejects the session token (expired, or the user no longer exists). */
+export function onSessionExpired(handler: () => void): void {
+  sessionExpired = handler;
+}
+
 async function call<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -46,6 +53,7 @@ async function call<T>(
   const res = await fetch(path, { ...init, headers });
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
+    if (res.status === 401 && init.token) sessionExpired();
     const msg = (body as { message?: string | string[] } | null)?.message;
     throw new ApiError(res.status, Array.isArray(msg) ? msg.join('; ') : (msg ?? res.statusText));
   }

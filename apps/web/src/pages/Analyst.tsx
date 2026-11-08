@@ -1,23 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { api, type DocumentFile } from '../api';
 import { useAuth } from '../auth';
 import {
+  CaseStatusLine,
   ClarificationHistory,
   DecisionCard,
   ExtractionPanel,
-  StatusPill,
 } from '../components/case-parts';
 import { CopilotPanel } from '../components/CopilotPanel';
 import { OwnerLinkPanel } from '../components/OwnerLinkPanel';
-import { isCaseInFlight, TIER } from '../format';
+import { LoadError } from '../components/LoadError';
+import { isCaseInFlight, STATUS_LABEL, TIER } from '../format';
 import { Shell } from './Shell';
 import { CaseTable } from './Supplier';
 
 export function AnalystHome() {
   const { session } = useAuth();
-  const [status, setStatus] = useState('');
+  // In the URL, so a filtered list can be reloaded and shared.
+  const [params, setParams] = useSearchParams();
+  const status = params.get('estado') ?? '';
   const cases = useQuery({
     queryKey: ['cases'],
     queryFn: () => api.listCases(session?.token ?? ''),
@@ -26,20 +29,32 @@ export function AnalystHome() {
   const rows = (cases.data ?? []).filter((c) => !status || c.status === status);
   return (
     <Shell title="Solicitudes">
-      <label className="inline">
-        Estado{' '}
+      <label className="filter">
+        Filtrar por estado
         <select
+          name="estado"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          aria-label="Filtrar por estado"
+          onChange={(e) => setParams(e.target.value ? { estado: e.target.value } : {})}
         >
           <option value="">Todos</option>
-          <option value="AWAITING_OWNER">Esperando al dueño</option>
-          <option value="DECIDED">Decididos</option>
-          <option value="FAILED">Con error</option>
+          {Object.entries(STATUS_LABEL).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
       </label>
-      <CaseTable rows={rows} base="/analyst/cases" />
+      {cases.isError ? (
+        <LoadError error={cases.error} onRetry={() => void cases.refetch()} />
+      ) : cases.isPending ? (
+        <p className="muted">Cargando solicitudes…</p>
+      ) : (
+        <CaseTable
+          rows={rows}
+          base="/analyst/cases"
+          empty={status ? 'Ninguna solicitud con este estado.' : 'Todavía no hay solicitudes.'}
+        />
+      )}
     </Shell>
   );
 }
@@ -56,12 +71,15 @@ export function AnalystCase() {
       query.state.data && !isCaseInFlight(query.state.data) ? false : 2000,
   });
   const c = q.data;
-  const [selected, setSelected] = useState<string | null>(null);
+  // The open document is in the URL: reload and shared links land on the same one.
+  const [params, setParams] = useSearchParams();
+  const selected = params.get('doc');
   const docId = selected ?? c?.documents[0]?.id ?? null;
   // The loaded file is tagged with its document id, so a slow response for a document the analyst
   // already left is never shown in place of the selected one.
   const [loaded, setLoaded] = useState<{ docId: string; file: DocumentFile | null } | null>(null);
-  const file = loaded?.docId === docId ? loaded.file : null;
+  const current = loaded?.docId === docId ? loaded : null;
+  const file = current?.file ?? null;
   const doc = c?.documents.find((d) => d.id === docId);
 
   useEffect(() => {
@@ -88,14 +106,18 @@ export function AnalystCase() {
   }, [docId, token]);
 
   return (
-    <Shell title={`Solicitud ${id.slice(0, 8)}`}>
-      {!c ? (
-        <p className="muted">Cargando…</p>
+    <Shell
+      title={`Solicitud ${id.slice(0, 8)}`}
+      back={{ to: '/analyst', label: 'Volver a solicitudes' }}
+    >
+      {q.isError && !c ? (
+        <LoadError error={q.error} onRetry={() => void q.refetch()} />
+      ) : !c ? (
+        <p className="muted">Cargando solicitud…</p>
       ) : (
         <>
-          <p>
-            Estado: <StatusPill c={c} /> <Legend />
-          </p>
+          <CaseStatusLine c={c} />
+          <Legend />
           {c.decision && <DecisionCard decision={c.decision} detailed />}
           <div className="tabs">
             {c.documents.map((d) => (
@@ -103,7 +125,8 @@ export function AnalystCase() {
                 key={d.id}
                 type="button"
                 className={d.id === docId ? 'active' : ''}
-                onClick={() => setSelected(d.id)}
+                aria-pressed={d.id === docId}
+                onClick={() => setParams({ doc: d.id }, { replace: true })}
               >
                 {d.originalName}
               </button>
@@ -118,7 +141,9 @@ export function AnalystCase() {
                   {file.text}
                 </pre>
               ) : (
-                <p className="muted">Sin vista previa</p>
+                <p className="muted" role="status">
+                  {current ? 'No pudimos cargar el documento.' : 'Cargando documento…'}
+                </p>
               )}
             </div>
             <div>{doc && <ExtractionPanel doc={doc} analyst />}</div>
@@ -136,12 +161,13 @@ export function AnalystCase() {
 
 function Legend() {
   return (
-    <span className="legend" aria-label="Leyenda de niveles">
+    <p className="legend">
+      <span className="sr-only">Niveles de extracción: </span>
       {Object.entries(TIER).map(([k, v]) => (
         <span key={k}>
-          <i style={{ background: v.color }} /> {v.label}
+          <i aria-hidden="true" style={{ background: v.color }} /> {v.label}
         </span>
       ))}
-    </span>
+    </p>
   );
 }
