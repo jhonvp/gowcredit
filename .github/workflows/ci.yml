@@ -1,0 +1,87 @@
+# CI (ADR 0006): everything runs through the same Make targets and Docker images as locally.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint, typecheck, unit, integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build dev image and install dependencies
+        run: make install
+      - name: Lint and typecheck
+        run: make lint typecheck
+      - name: Unit tests
+        run: make test
+      - name: Integration tests (Postgres, Floci S3/SQS, Mailpit)
+        run: make test-integration
+
+  infra:
+    name: terraform validate + apply envs/local on Floci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: fmt + validate (local and prod)
+        run: make tf-validate
+      - name: Apply envs/local against Floci
+        run: make tf-local
+
+  e2e:
+    name: stack, smoke, Playwright, Artillery
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Start the stack
+        run: make up
+      - name: Wait for the API
+        run: |
+          for i in $(seq 1 60); do curl -fsS localhost:3000/health && exit 0; sleep 3; done
+          docker compose logs api worker migrate; exit 1
+      - name: Smoke
+        run: make smoke
+      - name: Browser E2E (Playwright)
+        run: make test-e2e
+      - name: Load test (Artillery thresholds)
+        run: make test-load
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report
+      - name: Stack logs
+        if: failure()
+        run: docker compose logs --no-color api worker web > stack.log; tail -200 stack.log
+
+  images:
+    name: production images build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: api-runtime
+        run: docker build -f docker/Dockerfile --target api-runtime -t gowcredit-api:${{ github.sha }} .
+      - name: web-runtime
+        run: docker build -f docker/Dockerfile --target web-runtime -t gowcredit-web:${{ github.sha }} .
+      - name: api image starts and fails fast without configuration
+        run: |
+          out=$(docker run --rm gowcredit-api:${{ github.sha }} 2>&1 || true)
+          echo "$out" | tail -5
+          echo "$out" | grep -q "Invalid environment"

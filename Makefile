@@ -2,7 +2,7 @@
 DC := docker compose
 RUN := $(DC) run --rm tools
 
-.PHONY: up down logs ps sh install seed eval eval-t0 eval-record train-classifier test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
+.PHONY: tf-local tf-validate up down logs ps sh install seed eval eval-t0 eval-record train-classifier test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
 
 up:            ## start the full stack (api, web, postgres, floci, mailpit)
 	$(DC) up -d --build
@@ -53,6 +53,16 @@ migration-generate: ## make migration-generate name=AddSomething
 	$(RUN) pnpm --filter @gowcredit/api migration:generate src/infrastructure/persistence/migrations/$(name)
 migration-revert:
 	$(RUN) pnpm --filter @gowcredit/api migration:revert
+tf-local:      ## terraform apply envs/local against Floci (bucket, queue + DLQ, secrets)
+	$(DC) up -d floci
+	$(DC) --profile infra run --rm terraform -chdir=envs/local init -input=false
+	$(DC) --profile infra run --rm terraform -chdir=envs/local apply -input=false -auto-approve
+tf-validate:   ## terraform fmt -check + validate for envs/local and envs/prod (no AWS access needed)
+	$(DC) --profile infra run --rm terraform fmt -recursive -check
+	$(DC) --profile infra run --rm terraform -chdir=envs/local init -input=false -backend=false
+	$(DC) --profile infra run --rm terraform -chdir=envs/local validate
+	$(DC) --profile infra run --rm terraform -chdir=envs/prod init -input=false -backend=false
+	$(DC) --profile infra run --rm terraform -chdir=envs/prod validate
 build-images:  ## production images
 	docker build -f docker/Dockerfile --target api-runtime -t gowcredit-api .
 	docker build -f docker/Dockerfile --target web-runtime -t gowcredit-web .

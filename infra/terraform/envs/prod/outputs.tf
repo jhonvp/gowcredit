@@ -1,0 +1,10 @@
+output "web_url" { value = module.web.url }
+output "web_bucket" { value = module.web.bucket_name }
+output "web_distribution_id" { value = module.web.distribution_id }
+output "ecr_repository_url" { value = module.app.ecr_repository_url }
+output "cluster_name" { value = module.app.cluster_name }
+output "api_service_name" { value = module.app.api_service_name }
+output "worker_service_name" { value = module.app.worker_service_name }
+output "migrate_task_definition" { value = module.app.migrate_task_definition }
+output "private_subnet_ids" { value = module.network.private_subnet_ids }
+output "app_security_group_id" { value = module.app.app_security_group_id }

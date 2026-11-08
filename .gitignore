@@ -33,3 +33,8 @@ tmp/
 tests/e2e/playwright-report/
 tests/e2e/test-results/
 .husky/_/
+
+# Terraform
+infra/terraform/**/.terraform/
+infra/terraform/**/terraform.tfstate*
+infra/terraform/**/*.tfplan
