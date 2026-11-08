@@ -10,7 +10,7 @@ import {
   StatusPill,
 } from '../components/case-parts';
 import { CopilotPanel } from '../components/CopilotPanel';
-import { isInFlight, TIER } from '../format';
+import { isCaseInFlight, TIER } from '../format';
 import { Shell } from './Shell';
 import { CaseTable } from './Supplier';
 
@@ -52,23 +52,25 @@ export function AnalystCase() {
     queryKey: ['case', id],
     queryFn: () => api.getCase(token, id),
     refetchInterval: (query) =>
-      query.state.data && !isInFlight(query.state.data.status) ? false : 2000,
+      query.state.data && !isCaseInFlight(query.state.data) ? false : 2000,
   });
   const c = q.data;
   const [selected, setSelected] = useState<string | null>(null);
   const docId = selected ?? c?.documents[0]?.id ?? null;
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<
+    { kind: 'pdf'; url: string } | { kind: 'text'; text: string } | null
+  >(null);
   const doc = c?.documents.find((d) => d.id === docId);
 
   useEffect(() => {
     if (!docId || !token) return;
     let url: string | null = null;
-    api.documentUrl(token, docId).then(
-      (u) => {
-        url = u;
-        setFileUrl(u);
+    api.documentFile(token, docId).then(
+      (f) => {
+        if (f.kind === 'pdf') url = f.url;
+        setFile(f);
       },
-      () => setFileUrl(null),
+      () => setFile(null),
     );
     return () => {
       if (url) URL.revokeObjectURL(url);
@@ -99,10 +101,12 @@ export function AnalystCase() {
           </div>
           <div className="split">
             <div className="viewer">
-              {fileUrl && doc?.docType !== 'CFDI_INVOICE' ? (
-                <iframe title="Documento" src={fileUrl} />
-              ) : fileUrl ? (
-                <iframe title="Documento" src={fileUrl} className="xml" />
+              {file?.kind === 'pdf' ? (
+                <iframe title="Documento" src={file.url} />
+              ) : file ? (
+                <pre className="xml" aria-label="Documento">
+                  {file.text}
+                </pre>
               ) : (
                 <p className="muted">Sin vista previa</p>
               )}

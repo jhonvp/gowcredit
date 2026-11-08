@@ -1,4 +1,4 @@
-import type { CaseStatus, DecisionOutcome, ExtractionTier } from '@gowcredit/contracts';
+import type { CaseStatus, CaseView, DecisionOutcome, ExtractionTier } from '@gowcredit/contracts';
 
 /** Integer cents → "$1,234.56". */
 export const money = (cents: number | null | undefined): string =>
@@ -41,3 +41,14 @@ export const TIER: Record<ExtractionTier, { label: string; color: string }> = {
 /** Statuses that will change on their own (the worker is busy): keep polling. */
 export const isInFlight = (s: CaseStatus) =>
   s === 'RECEIVED' || s === 'EXTRACTING' || s === 'EXTRACTED';
+
+/**
+ * Keep polling while the worker still owns the case or still has a document to read. Right after a
+ * document is added to a decided case, the status is still DECIDED until the worker picks the job up,
+ * so the status alone would stop polling too early. Unreadable (UNKNOWN) documents and failed cases
+ * will not change on their own.
+ */
+export const isCaseInFlight = (c: Pick<CaseView, 'status' | 'documents'>): boolean =>
+  isInFlight(c.status) ||
+  (c.status !== 'FAILED' &&
+    c.documents.some((d) => !d.extraction && !d.invoice && d.docType !== 'UNKNOWN'));
