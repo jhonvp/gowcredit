@@ -245,6 +245,17 @@ export const ClarificationViewSchema = z.object({
 });
 export type ClarificationView = z.infer<typeof ClarificationViewSchema>;
 
+/**
+ * POST /api/cases/:id/owner-link (analyst, only where OWNER_LINK_SHARING=true): a fresh magic link
+ * for the open owner request. It replaces the emailed link, which stops working; shown only once.
+ */
+export const OwnerLinkResponseSchema = z.object({
+  link: z.string().url(),
+  expiresAt: z.string(),
+  round: z.number().int(),
+});
+export type OwnerLinkResponse = z.infer<typeof OwnerLinkResponseSchema>;
+
 // ---- Analyst copilot (ADR 0010) ----
 export const CopilotRequestSchema = z.object({ question: z.string().trim().min(1).max(1000) });
 export type CopilotRequest = z.infer<typeof CopilotRequestSchema>;

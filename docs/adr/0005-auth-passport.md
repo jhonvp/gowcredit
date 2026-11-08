@@ -25,3 +25,18 @@
 - **Seeds:** `supplier@demo.mx`, `supplier2@demo.mx` (to show isolation), `analyst@demo.mx`, password
   `demo1234`, plus the key `gk_local_demo_key_0001`. Seeding is refused when `NODE_ENV=production`.
 - **The owner magic link** comes with the clarification loop (next PR).
+
+**Hardening (2026-11-08, security review).**
+
+- **JWTs** also carry `iss=gowcredit-api` and `aud=gowcredit-web`, and the strategy rejects any other. After
+  the signature check the user is read again: a deleted user is rejected at once, and the role comes from
+  the database, not from the token. The 8-hour TTL stays, because a role change or removal no longer waits
+  for expiry.
+- **Login rate limit** (`@nestjs/throttler`, login route only): `LOGIN_ATTEMPTS_PER_MINUTE` per email
+  (default 10) and 5x that per IP, counted before the password check; over the limit the answer is `429`
+  with `Retry-After`. Counters are in memory per task. With several tasks, a shared store (Redis) would
+  make the limit exact.
+- **Client IP.** `TRUST_PROXY_HOPS` (2 in AWS: CloudFront, then the ALB) makes `req.ip` the client.
+- **Headers.** helmet on the API. CloudFront sends a strict CSP plus `no-referrer`, `nosniff`, `DENY`
+  and HSTS for the web app (`apps/web/security-headers.ts` and `infra/terraform/modules/web`).
+- **Errors.** One `ApplicationErrorFilter` maps application errors to HTTP for every route.

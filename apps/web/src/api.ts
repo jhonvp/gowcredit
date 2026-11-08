@@ -10,6 +10,8 @@ import {
   type OwnerAnswerResponse,
   OwnerAnswerResponseSchema,
   type OwnerAnswersRequest,
+  type OwnerLinkResponse,
+  OwnerLinkResponseSchema,
   type OwnerRequestView,
   OwnerRequestViewSchema,
   type SubmitDocumentResponse,
@@ -21,6 +23,9 @@ import type { z } from 'zod';
  * Thin API client. Every response is parsed with the shared zod contracts (ADR 0011), so an API/web
  * drift fails loudly here instead of rendering wrong data.
  */
+/** A downloaded document: PDFs as an object URL for the viewer, anything else as plain text. */
+export type DocumentFile = { kind: 'pdf'; url: string } | { kind: 'text'; text: string };
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -79,13 +84,26 @@ export const api = {
   copilot: (token: string, caseId: string, question: string): Promise<CopilotResponse> =>
     call(`/api/cases/${caseId}/copilot`, CopilotResponseSchema, { ...json({ question }), token }),
 
-  /** Authenticated download as an object URL (the browser's PDF viewer shows it). */
-  async documentUrl(token: string, documentId: string): Promise<string> {
+  /** New owner magic link (replaces the emailed one); 404 where sharing is disabled. */
+  ownerLink: (token: string, caseId: string): Promise<OwnerLinkResponse> =>
+    call(`/api/cases/${caseId}/owner-link`, OwnerLinkResponseSchema, { method: 'POST', token }),
+
+  /**
+   * Authenticated download. PDFs become an object URL for the browser's PDF viewer. Anything else
+   * (CFDI XML) comes back as text and is shown escaped: an uploaded XML can carry XHTML <script>, and
+   * a blob: URL has this app's origin, so it must never be rendered as a document.
+   */
+  async documentFile(token: string, documentId: string): Promise<DocumentFile> {
     const res = await fetch(`/api/documents/${documentId}/file`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new ApiError(res.status, res.statusText);
-    return URL.createObjectURL(await res.blob());
+    const type = res.headers.get('content-type') ?? '';
+    if (type.startsWith('application/pdf')) {
+      const pdf = new Blob([await res.arrayBuffer()], { type: 'application/pdf' });
+      return { kind: 'pdf', url: URL.createObjectURL(pdf) };
+    }
+    return { kind: 'text', text: await res.text() };
   },
 
   owner: {

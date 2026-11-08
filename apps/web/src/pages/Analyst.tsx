@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { api } from '../api';
+import { api, type DocumentFile } from '../api';
 import { useAuth } from '../auth';
 import {
   ClarificationHistory,
@@ -10,7 +10,8 @@ import {
   StatusPill,
 } from '../components/case-parts';
 import { CopilotPanel } from '../components/CopilotPanel';
-import { isInFlight, TIER } from '../format';
+import { OwnerLinkPanel } from '../components/OwnerLinkPanel';
+import { isCaseInFlight, TIER } from '../format';
 import { Shell } from './Shell';
 import { CaseTable } from './Supplier';
 
@@ -52,25 +53,36 @@ export function AnalystCase() {
     queryKey: ['case', id],
     queryFn: () => api.getCase(token, id),
     refetchInterval: (query) =>
-      query.state.data && !isInFlight(query.state.data.status) ? false : 2000,
+      query.state.data && !isCaseInFlight(query.state.data) ? false : 2000,
   });
   const c = q.data;
   const [selected, setSelected] = useState<string | null>(null);
   const docId = selected ?? c?.documents[0]?.id ?? null;
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  // The loaded file is tagged with its document id, so a slow response for a document the analyst
+  // already left is never shown in place of the selected one.
+  const [loaded, setLoaded] = useState<{ docId: string; file: DocumentFile | null } | null>(null);
+  const file = loaded?.docId === docId ? loaded.file : null;
   const doc = c?.documents.find((d) => d.id === docId);
 
   useEffect(() => {
     if (!docId || !token) return;
+    let cancelled = false;
     let url: string | null = null;
-    api.documentUrl(token, docId).then(
-      (u) => {
-        url = u;
-        setFileUrl(u);
+    api.documentFile(token, docId).then(
+      (f) => {
+        if (f.kind === 'pdf') {
+          // Arrived after cleanup: nobody will show it, so release the blob now.
+          if (cancelled) return URL.revokeObjectURL(f.url);
+          url = f.url;
+        }
+        if (!cancelled) setLoaded({ docId, file: f });
       },
-      () => setFileUrl(null),
+      () => {
+        if (!cancelled) setLoaded({ docId, file: null });
+      },
     );
     return () => {
+      cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
   }, [docId, token]);
@@ -99,16 +111,21 @@ export function AnalystCase() {
           </div>
           <div className="split">
             <div className="viewer">
-              {fileUrl && doc?.docType !== 'CFDI_INVOICE' ? (
-                <iframe title="Documento" src={fileUrl} />
-              ) : fileUrl ? (
-                <iframe title="Documento" src={fileUrl} className="xml" />
+              {file?.kind === 'pdf' ? (
+                <iframe title="Documento" src={file.url} />
+              ) : file ? (
+                <pre className="xml" aria-label="Documento">
+                  {file.text}
+                </pre>
               ) : (
                 <p className="muted">Sin vista previa</p>
               )}
             </div>
             <div>{doc && <ExtractionPanel doc={doc} analyst />}</div>
           </div>
+          {c.clarifications.some((r) => r.status === 'open') && (
+            <OwnerLinkPanel token={token} caseId={c.id} />
+          )}
           <CopilotPanel token={token} caseId={c.id} />
           <ClarificationHistory items={c.clarifications} />
         </>

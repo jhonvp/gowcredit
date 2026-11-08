@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router';
 import { api, ApiError } from '../api';
 import { useAuth } from '../auth';
 import { DecisionCard, ExtractionPanel, StatusPill } from '../components/case-parts';
-import { dateTime, isInFlight, OUTCOME_LABEL } from '../format';
+import { dateTime, isCaseInFlight, OUTCOME_LABEL } from '../format';
 import { Shell } from './Shell';
 
 /** Supplier home: upload a statement or a CFDI and follow its cases. */
@@ -126,7 +126,7 @@ export function SupplierCase() {
     queryKey: ['case', id],
     queryFn: () => api.getCase(token, id),
     refetchInterval: (query) =>
-      query.state.data && !isInFlight(query.state.data.status) ? false : 2000,
+      query.state.data && !isCaseInFlight(query.state.data) ? false : 2000,
   });
   const add = useMutation({
     mutationFn: () => api.upload(token, file as File, '', id),

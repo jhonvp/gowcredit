@@ -4,12 +4,10 @@ import {
   Body,
   Controller,
   Get,
-  GoneException,
   HttpCode,
   Inject,
   NotFoundException,
   Post,
-  UnprocessableEntityException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -30,17 +28,12 @@ import {
   CLARIFICATION_REPOSITORY_PORT,
   type ClarificationRepositoryPort,
 } from '../../application/ports/clarification.ports';
-import {
-  AnswerClarificationUseCase,
-  ClarificationClosedError,
-} from '../../application/use-cases/answer-clarification.use-case';
+import { AnswerClarificationUseCase } from '../../application/use-cases/answer-clarification.use-case';
 import {
   MAX_DOCUMENT_BYTES,
   SubmitDocumentUseCase,
-  UnsupportedDocumentError,
 } from '../../application/use-cases/submit-document.use-case';
 import type { Principal } from '../../domain/auth/principal';
-import { InvalidAnswerError } from '../../domain/clarification/questions';
 import { CurrentPrincipal, Public } from '../../infrastructure/auth/guards';
 
 interface MulterFile {
@@ -85,13 +78,7 @@ export class OwnerController {
     const parsed = OwnerAnswersRequestSchema.safeParse(body);
     if (!parsed.success)
       throw new BadRequestException(parsed.error.issues.map((i) => i.message).join('; '));
-    try {
-      return await this.answer.execute(p.requestId, parsed.data.answers);
-    } catch (e) {
-      if (e instanceof InvalidAnswerError) throw new UnprocessableEntityException(e.message);
-      if (e instanceof ClarificationClosedError) throw new GoneException(e.message);
-      throw e;
-    }
+    return this.answer.execute(p.requestId, parsed.data.answers);
   }
 
   /** Uploads a requested document (recent statement, corrected XML) into the owner's case. */
@@ -106,24 +93,19 @@ export class OwnerController {
     if (!file) throw new BadRequestException('multipart field "file" is required');
     const c = await this.cases.findCase(p.caseId);
     if (!c) throw new NotFoundException();
-    try {
-      const updated = await this.submit.execute(
-        {
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          bytes: file.buffer,
-          sha256: createHash('sha256').update(file.buffer).digest('hex'),
-        },
-        { supplierId: c.supplierId, caseId: c.id },
-      );
-      return {
-        caseId: updated.id,
-        documentId: updated.documents[updated.documents.length - 1]?.id as string,
-        status: updated.status,
-      };
-    } catch (e) {
-      if (e instanceof UnsupportedDocumentError) throw new BadRequestException(e.message);
-      throw e;
-    }
+    const updated = await this.submit.execute(
+      {
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        bytes: file.buffer,
+        sha256: createHash('sha256').update(file.buffer).digest('hex'),
+      },
+      { supplierId: c.supplierId, caseId: c.id },
+    );
+    return {
+      caseId: updated.id,
+      documentId: updated.documents[updated.documents.length - 1]?.id as string,
+      status: updated.status,
+    };
   }
 }
