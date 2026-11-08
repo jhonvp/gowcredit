@@ -10,6 +10,8 @@ import {
   type OwnerAnswerResponse,
   OwnerAnswerResponseSchema,
   type OwnerAnswersRequest,
+  type OwnerLinkResponse,
+  OwnerLinkResponseSchema,
   type OwnerRequestView,
   OwnerRequestViewSchema,
   type SubmitDocumentResponse,
@@ -78,6 +80,10 @@ export const api = {
 
   copilot: (token: string, caseId: string, question: string): Promise<CopilotResponse> =>
     call(`/api/cases/${caseId}/copilot`, CopilotResponseSchema, { ...json({ question }), token }),
+
+  /** New owner magic link (replaces the emailed one); 404 where sharing is disabled. */
+  ownerLink: (token: string, caseId: string): Promise<OwnerLinkResponse> =>
+    call(`/api/cases/${caseId}/owner-link`, OwnerLinkResponseSchema, { method: 'POST', token }),
 
   /**
    * Authenticated download. PDFs become an object URL for the browser's PDF viewer. Anything else

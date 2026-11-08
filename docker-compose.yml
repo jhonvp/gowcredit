@@ -31,6 +31,8 @@ x-node: &node
     S3_BUCKET: gowcredit-local-documents
     SQS_QUEUE_NAME: gowcredit-local-extract
     AWS_BOOTSTRAP: 'true'
+    # Local demo: analysts can generate the owner's magic link in the case view (off in production).
+    OWNER_LINK_SHARING: 'true'
     DD_TRACE_ENABLED: ${DD_TRACE_ENABLED:-false}
     DD_AGENT_HOST: datadog-agent
     DD_ENV: local

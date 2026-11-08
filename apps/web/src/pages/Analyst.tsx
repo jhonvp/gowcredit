@@ -10,6 +10,7 @@ import {
   StatusPill,
 } from '../components/case-parts';
 import { CopilotPanel } from '../components/CopilotPanel';
+import { OwnerLinkPanel } from '../components/OwnerLinkPanel';
 import { isCaseInFlight, TIER } from '../format';
 import { Shell } from './Shell';
 import { CaseTable } from './Supplier';
@@ -113,6 +114,9 @@ export function AnalystCase() {
             </div>
             <div>{doc && <ExtractionPanel doc={doc} analyst />}</div>
           </div>
+          {c.clarifications.some((r) => r.status === 'open') && (
+            <OwnerLinkPanel token={token} caseId={c.id} />
+          )}
           <CopilotPanel token={token} caseId={c.id} />
           <ClarificationHistory items={c.clarifications} />
         </>

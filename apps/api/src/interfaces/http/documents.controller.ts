@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   StreamableFile,
   BadRequestException,
+  ConflictException,
   Body,
   Controller,
   ForbiddenException,
@@ -25,9 +26,12 @@ import {
   type CaseView,
   type CopilotResponse,
   CopilotRequestSchema,
+  type OwnerLinkResponse,
   type SubmitDocumentResponse,
 } from '@gowcredit/contracts';
 import { AnalystCopilotUseCase } from '../../application/use-cases/analyst-copilot.use-case';
+import { ShareOwnerLinkUseCase } from '../../application/use-cases/share-owner-link.use-case';
+import { AppConfig } from '../../infrastructure/config/app-config';
 import {
   CASE_REPOSITORY_PORT,
   type CaseRepositoryPort,
@@ -69,7 +73,28 @@ export class DocumentsController {
     @Inject(CLARIFICATION_REPOSITORY_PORT) private readonly requests: ClarificationRepositoryPort,
     @Inject(OBJECT_STORAGE_PORT) private readonly storage: ObjectStoragePort,
     private readonly copilot: AnalystCopilotUseCase,
+    private readonly shareLink: ShareOwnerLinkUseCase,
+    private readonly config: AppConfig,
   ) {}
+
+  /**
+   * A fresh owner magic link for the open request (where OWNER_LINK_SHARING=true). It replaces the
+   * emailed link, which stops working, and is returned once.
+   */
+  @Post('cases/:id/owner-link')
+  @Roles('analyst')
+  @HttpCode(200)
+  async ownerLink(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<OwnerLinkResponse> {
+    if (!this.config.mail.ownerLinkSharing)
+      throw new NotFoundException('owner link sharing is disabled in this environment');
+    if (p.kind !== 'user') throw new NotFoundException();
+    const out = await this.shareLink.execute(id, { userId: p.userId });
+    if (!out) throw new ConflictException('this case has no open owner request');
+    return { link: out.link, expiresAt: out.expiresAt.toISOString(), round: out.round };
+  }
 
   /** Analyst copilot (ADR 0010): read-only answers about one case's decision and provenance. */
   @Post('cases/:id/copilot')

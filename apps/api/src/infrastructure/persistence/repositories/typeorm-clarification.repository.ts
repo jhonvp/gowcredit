@@ -63,6 +63,11 @@ export class TypeOrmClarificationRepository implements ClarificationRepositoryPo
   async markSuperseded(id: string) {
     await this.repo.update({ id, status: 'open' }, { status: 'superseded', tokenHash: null });
   }
+
+  async rotateToken(id: string, tokenHash: string, expiresAt: Date) {
+    const r = await this.repo.update({ id, status: 'open' }, { tokenHash, expiresAt });
+    return (r.affected ?? 0) > 0;
+  }
 }
 
 const toRecord = (r: ClarificationOrmEntity): ClarificationRecord => ({
