@@ -49,6 +49,11 @@ test('login rejects a wrong password', async ({ page }) => {
 test('supplier → owner clarification → decision → analyst', async ({ page }) => {
   test.setTimeout(120_000);
   const owner = `owner+e2e${Date.now()}@demo.mx`;
+  // Against the production build (vite preview / CloudFront) the CSP is on: nothing may violate it.
+  const cspViolations: string[] = [];
+  page.on('console', (m) => {
+    if (/Content Security Policy/i.test(m.text())) cspViolations.push(m.text());
+  });
 
   // Supplier: upload a statement.
   await login(page, 'supplier@demo.mx');
@@ -103,6 +108,7 @@ test('supplier → owner clarification → decision → analyst', async ({ page 
   await expect(page.getByRole('region', { name: 'Copiloto' }).getByRole('status')).toContainText(
     'QUALIFIES',
   );
+  expect(cspViolations).toEqual([]);
 });
 
 test('web proxies /api to the API container', async ({ request }) => {
