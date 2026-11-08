@@ -23,10 +23,11 @@ export class AppConfig {
   get dbLogging(): boolean {
     return this.config.get('DB_LOGGING', { infer: true });
   }
-  get auth(): { jwtSecret: string; jwtTtlSeconds: number } {
+  get auth(): { jwtSecret: string; jwtTtlSeconds: number; loginAttemptsPerMinute: number } {
     return {
       jwtSecret: this.config.get('JWT_SECRET', { infer: true }),
       jwtTtlSeconds: this.config.get('JWT_TTL_SECONDS', { infer: true }),
+      loginAttemptsPerMinute: this.config.get('LOGIN_ATTEMPTS_PER_MINUTE', { infer: true }),
     };
   }
   get trustProxyHops(): number {

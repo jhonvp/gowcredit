@@ -26,6 +26,8 @@ export const envSchema = z.object({
     .int()
     .positive()
     .default(8 * 3600),
+  /** Login attempts per minute for one email; one IP gets 5x this (spraying many emails). */
+  LOGIN_ATTEMPTS_PER_MINUTE: z.coerce.number().int().positive().default(10),
   /**
    * Proxies in front of the API whose X-Forwarded-For is trusted, so req.ip is the client (rate limits).
    * 0 locally; 2 in AWS (CloudFront, then the ALB).

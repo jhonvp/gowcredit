@@ -59,6 +59,23 @@ describe('auth (integration)', () => {
     expect(me.body).toMatchObject({ email: 'supplier@demo.mx', role: 'supplier' });
   });
 
+  it('limits login attempts per email (failed ones count) and answers 429', async () => {
+    const attempt = () =>
+      http().post('/api/auth/login').send({ email: 'Spray@Demo.mx', password: 'nope' });
+    for (let i = 0; i < 10; i++) await attempt().expect(401);
+    const blocked = await attempt().expect(429);
+    expect(blocked.headers['retry-after']).toBeDefined();
+    // Same email in another case is the same account; other accounts are unaffected.
+    await http()
+      .post('/api/auth/login')
+      .send({ email: 'spray@demo.mx', password: 'nope' })
+      .expect(429);
+    await http()
+      .post('/api/auth/login')
+      .send({ email: 'analyst@demo.mx', password: 'demo1234' })
+      .expect(200);
+  });
+
   it('sends security headers on every response', async () => {
     const res = await http().get('/api/cases').set(supplier).expect(200);
     expect(res.headers['x-content-type-options']).toBe('nosniff');

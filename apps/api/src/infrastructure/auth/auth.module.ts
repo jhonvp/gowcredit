@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { DataSource } from 'typeorm';
 import {
   API_KEY_REPOSITORY_PORT,
@@ -15,6 +16,7 @@ import { AppConfig } from '../config/app-config';
 import { TypeOrmUserRepository } from '../persistence/repositories/typeorm-user.repository';
 import { Argon2PasswordHasher } from './argon2-password-hasher';
 import { ApiAuthGuard, RolesGuard } from './guards';
+import { loginThrottlers } from './login-throttle';
 import { ApiKeyStrategy, JwtStrategy, LocalStrategy } from './strategies';
 
 /** Passport wiring (ADR 0005): local → JWT for users, X-API-Key for integrations, global guards. */
@@ -22,6 +24,14 @@ import { ApiKeyStrategy, JwtStrategy, LocalStrategy } from './strategies';
 @Module({
   imports: [
     PassportModule,
+    // Only routes with @UseGuards(ThrottlerGuard) are limited (login); there is no global guard.
+    ThrottlerModule.forRootAsync({
+      inject: [AppConfig],
+      useFactory: (config: AppConfig) => ({
+        throttlers: loginThrottlers(config.auth.loginAttemptsPerMinute),
+        errorMessage: 'too many login attempts, try again in a minute',
+      }),
+    }),
     JwtModule.registerAsync({
       inject: [AppConfig],
       useFactory: (config: AppConfig) => ({
