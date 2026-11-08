@@ -126,7 +126,7 @@ describe('RequestClarificationUseCase', () => {
     expect(r?.expiresAt?.toISOString()).toBe('2025-04-12T12:00:00.000Z');
     expect(sent).toHaveLength(1);
     expect(sent[0]?.to).toBe('owner@demo.mx');
-    expect(sent[0]?.text).toContain('http://localhost:5173/owner/tok1');
+    expect(sent[0]?.text).toContain('http://localhost:5173/owner#tok1');
     expect(sent[0]?.text).toContain('fecha de vencimiento');
   });
 
@@ -232,7 +232,7 @@ describe('ShareOwnerLinkUseCase', () => {
       'http://localhost:5173/',
     );
     const out = await share.execute('c1', { userId: 'a1' });
-    expect(out).toMatchObject({ link: 'http://localhost:5173/owner/fresh', round: 1 });
+    expect(out).toMatchObject({ link: 'http://localhost:5173/owner#fresh', round: 1 });
     expect(await requests.findOpenByTokenHash('hash1')).toBeNull(); // the emailed link
     expect(await requests.findOpenByTokenHash('hash-fresh')).not.toBeNull();
   });

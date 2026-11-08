@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthProvider, RequireRole } from './auth';
 import { AnalystCase, AnalystHome } from './pages/Analyst';
 import { Login } from './pages/Login';
-import { OwnerPage } from './pages/Owner';
+import { LegacyOwnerLink, OwnerPage } from './pages/Owner';
 import { SupplierCase, SupplierHome } from './pages/Supplier';
 
 /** Three screens (ADR 0011): supplier, analyst, and the owner's magic-link page. */
@@ -12,7 +12,8 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/owner/:token" element={<OwnerPage />} />
+          <Route path="/owner" element={<OwnerPage />} />
+          <Route path="/owner/:token" element={<LegacyOwnerLink />} />
           <Route
             path="/supplier"
             element={

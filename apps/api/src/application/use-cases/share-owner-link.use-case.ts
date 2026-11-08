@@ -1,3 +1,4 @@
+import { ownerLink } from '../clarification/owner-link';
 import type { ClarificationRepositoryPort, SecretTokenPort } from '../ports/clarification.ports';
 import type { ClockPort } from '../ports/clock.port';
 import type { LoggerPort } from '../ports/logger.port';
@@ -37,7 +38,7 @@ export class ShareOwnerLinkUseCase {
       analystId: by.userId,
     });
     return {
-      link: `${this.webBaseUrl.replace(/\/$/, '')}/owner/${token}`,
+      link: ownerLink(this.webBaseUrl, token),
       expiresAt,
       round: open.round,
     };

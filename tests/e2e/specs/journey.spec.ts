@@ -24,7 +24,7 @@ async function magicLink(to: string): Promise<string> {
       const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${id}`)).json()) as {
         Text: string;
       };
-      const m = /https?:\/\/[^\s]+\/owner\/([A-Za-z0-9_-]+)/.exec(msg.Text);
+      const m = /https?:\/\/[^\s]+\/owner#([A-Za-z0-9_-]+)/.exec(msg.Text);
       if (m) return m[1] as string;
     }
     await new Promise((r) => setTimeout(r, 500));
@@ -76,15 +76,16 @@ test('supplier → owner clarification → decision → analyst', async ({ page 
 
   // Owner: open the magic link from the email and answer.
   const token = await magicLink(owner);
-  await page.goto(`/owner/${token}`);
+  await page.goto(`/owner#${token}`);
   await expect(page.getByText(/fecha de vencimiento/)).toBeVisible();
   const due = new Date(Date.now() + 45 * 86_400_000).toISOString().slice(0, 10);
   await page.getByLabel('Respuesta INVOICE_DUE_DATE').fill(due);
   await page.getByRole('button', { name: 'Enviar respuestas' }).click();
   await expect(page.getByRole('status')).toContainText('Resultado: Califica');
 
-  // The link is single-use.
+  // The link is single-use. (Old /owner/<token> links still open: they move the token to the fragment.)
   await page.goto(`/owner/${token}`);
+  await expect(page).toHaveURL(new RegExp(`/owner#${token}$`));
   await expect(page.getByRole('alert')).toHaveText('Este enlace ya fue usado o expiró.');
 
   // Analyst: sees the decision, the tiers and the clarification history.

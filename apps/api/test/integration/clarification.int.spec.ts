@@ -29,7 +29,7 @@ async function tokenFromMail(to: string): Promise<string> {
         Text: string;
         Subject: string;
       };
-      const m = /\/owner\/([A-Za-z0-9_-]{20,})/.exec(msg.Text);
+      const m = /\/owner#([A-Za-z0-9_-]{20,})/.exec(msg.Text);
       if (m) return m[1] as string;
     }
     await new Promise((r) => setTimeout(r, 250));
@@ -189,7 +189,7 @@ describe('clarification loop (integration)', () => {
     await http().post(`/api/cases/${caseId}/owner-link`).set(supplier).expect(403);
     const res = await http().post(`/api/cases/${caseId}/owner-link`).set(analyst).expect(200);
     expect(res.body.round).toBe(1);
-    const fresh = /\/owner\/([A-Za-z0-9_-]{20,})$/.exec(res.body.link as string)?.[1];
+    const fresh = /\/owner#([A-Za-z0-9_-]{20,})$/.exec(res.body.link as string)?.[1];
     expect(fresh).toBeTruthy();
 
     await http().get('/api/owner/request').set({ 'X-Owner-Token': emailed }).expect(401);

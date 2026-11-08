@@ -3,36 +3,49 @@ import type {
   OwnerAnswersRequest,
   OwnerRequestView,
 } from '@gowcredit/contracts';
-import { type FormEvent, useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+import { type FormEvent, useState } from 'react';
+import { Navigate, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api';
 import { OUTCOME_LABEL, STATUS_LABEL } from '../format';
 
 type Values = Record<string, { value?: string | boolean; text?: string; file?: File }>;
 
 /**
- * Document owner page (magic link). No login: the token in the URL is the only credential, it shows
- * only this case's open questions, and it stops working after the answers are sent.
+ * Links sent before the token moved to the fragment (/owner/<token>): keep them working, but move the
+ * token out of the path at once so it stops reaching history, Referer and later requests.
+ */
+export function LegacyOwnerLink() {
+  const { token = '' } = useParams();
+  return <Navigate to={{ pathname: '/owner', hash: token }} replace />;
+}
+
+/**
+ * Document owner page (magic link: /owner#<token>). No login: the token is the only credential. It
+ * lives in the URL fragment, which browsers never send to a server, so it stays out of CDN and load
+ * balancer logs. The page shows only this case's open questions and stops working after the answers.
  */
 export function OwnerPage() {
-  const { token = '' } = useParams();
-  const [request, setRequest] = useState<OwnerRequestView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const token = decodeURIComponent(useLocation().hash.replace(/^#/, ''));
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [values, setValues] = useState<Values>({});
   const [result, setResult] = useState<OwnerAnswerResponse | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    api.owner
-      .request(token)
-      .then(setRequest, (e: unknown) =>
-        setError(
-          e instanceof ApiError && e.status === 401
-            ? 'Este enlace ya fue usado o expiró.'
-            : 'No pudimos abrir su solicitud.',
-        ),
-      );
-  }, [token]);
+  const q = useQuery<OwnerRequestView>({
+    queryKey: ['owner-request', token],
+    queryFn: () => api.owner.request(token),
+    enabled: token !== '',
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const request = q.data ?? null;
+  const expired = token === '' || (q.error instanceof ApiError && q.error.status === 401);
+  const loadError = expired
+    ? 'Este enlace ya fue usado o expiró.'
+    : q.isError
+      ? 'No pudimos abrir su solicitud.'
+      : null;
+  const error = submitError ?? loadError;
 
   const set = (code: string, patch: Values[string]) =>
     setValues((v) => ({ ...v, [code]: { ...v[code], ...patch } }));
@@ -41,7 +54,7 @@ export function OwnerPage() {
     e.preventDefault();
     if (!request) return;
     setBusy(true);
-    setError(null);
+    setSubmitError(null);
     try {
       for (const q of request.questions) {
         const f = values[q.code]?.file;
@@ -53,7 +66,7 @@ export function OwnerPage() {
         .filter((a) => a.value !== undefined || (a.text ?? '').trim() !== '');
       setResult(await api.owner.answer(token, { answers }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos enviar sus respuestas.');
+      setSubmitError(err instanceof ApiError ? err.message : 'No pudimos enviar sus respuestas.');
     } finally {
       setBusy(false);
     }
