@@ -80,6 +80,16 @@ describe('auth (integration)', () => {
     expect(all.map((c) => c.id)).toContain(caseId);
   });
 
+  it('serves the original file only to principals who can read the case', async () => {
+    const c = (await http().get(`/api/cases/${caseId}`).set(supplier).expect(200)).body;
+    const docId = c.documents[0].id as string;
+    const file = await http().get(`/api/documents/${docId}/file`).set(analyst).expect(200);
+    expect(file.headers['content-type']).toContain('application/pdf');
+    expect(file.body.subarray(0, 5).toString()).toBe('%PDF-');
+    await http().get(`/api/documents/${docId}/file`).set(supplier2).expect(404);
+    await http().get(`/api/documents/${docId}/file`).expect(401);
+  });
+
   it('lets integrations submit with an API key for their supplier; analysts cannot submit', async () => {
     const res = await http()
       .post('/api/documents')

@@ -39,7 +39,15 @@ make smoke     # checks every service
 
 `make check` runs lint, typecheck, unit and integration tests, which is what CI runs on every PR.
 
-## Try it: upload a statement
+## Try it in the browser
+
+Open http://localhost:5173 and sign in as `supplier@demo.mx` / `demo1234`. Upload a statement from
+`facturas/` (and a sample CFDI from `samples/cfdi/` into the same case). When the system needs
+something, the owner's email lands in Mailpit (http://localhost:8025); its link opens the owner page.
+Then sign in as `analyst@demo.mx` to see the decision, the extracted fields coloured by cascade tier,
+and the clarification history.
+
+## Try it: upload a statement (API)
 
 Seed users (created by `make up`): `supplier@demo.mx`, `supplier2@demo.mx`, `analyst@demo.mx`, password
 `demo1234`, and the integration key `gk_local_demo_key_0001` (header `X-API-Key`).
