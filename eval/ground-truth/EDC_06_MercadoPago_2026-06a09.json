@@ -1,0 +1,22 @@
+{
+  "file": "EDC_06_MercadoPago_2026-06a09.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Mercado Pago",
+  "currency": "MXN",
+  "periodStart": "2026-06-13",
+  "periodEnd": "2026-09-11",
+  "openingBalance": 69.3,
+  "closingBalance": 228.23,
+  "totalCredits": 207447.58,
+  "totalDebits": 207288.65,
+  "transactionCount": 217,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "Header: Saldo inicial, Entradas, Salidas, Saldo final. The period spans three months.",
+    "arithmetic": "opening + credits − debits = closing (69.30 + 207,447.58 − 207,288.65 = 228.23)",
+    "transactionCount": "Every row prints a running balance; the chain holds for all rows."
+  },
+  "knownAnomalies": [],
+  "notes": []
+}

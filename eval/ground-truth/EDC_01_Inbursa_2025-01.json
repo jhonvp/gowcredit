@@ -1,0 +1,22 @@
+{
+  "file": "EDC_01_Inbursa_2025-01.pdf",
+  "docType": "BANK_STATEMENT",
+  "bankName": "Inbursa",
+  "currency": "MXN",
+  "periodStart": "2025-01-01",
+  "periodEnd": "2025-01-31",
+  "openingBalance": 98.52,
+  "closingBalance": 1433.91,
+  "totalCredits": 924405.41,
+  "totalDebits": 923070.02,
+  "transactionCount": 37,
+  "holderName": null,
+  "holderRfc": null,
+  "verification": {
+    "summary": "Summary block page 1 (SALDO ANTERIOR, ABONOS, CARGOS, SALDO ACTUAL).",
+    "arithmetic": "opening + credits − debits = closing (98.52 + 924,405.41 − 923,070.02 = 1,433.91)",
+    "transactionCount": "Every row prints a running balance; the chain from the opening balance holds for all rows."
+  },
+  "knownAnomalies": [],
+  "notes": []
+}

@@ -2,7 +2,7 @@
 DC := docker compose
 RUN := $(DC) run --rm tools
 
-.PHONY: up down logs ps sh install test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
+.PHONY: up down logs ps sh install eval test test-integration test-e2e test-load smoke check lint typecheck format migrate migration-generate migration-revert build-images clean
 
 up:            ## start the full stack (api, web, postgres, floci, mailpit)
 	$(DC) up -d --build
@@ -16,6 +16,8 @@ sh:            ## shell in a tools container
 	$(RUN) bash
 install:
 	$(DC) run --rm deps
+eval:          ## extraction eval over facturas/ vs eval/ground-truth → eval/reports/latest.md
+	$(RUN) pnpm --filter @gowcredit/api eval
 test:          ## unit tests (no services needed)
 	$(RUN) pnpm test
 test-integration: ## API + real Postgres (separate gowcredit_test db)
