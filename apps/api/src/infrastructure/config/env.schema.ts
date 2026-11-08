@@ -30,6 +30,10 @@ export const envSchema = z.object({
     .transform((v) => v === 'true'),
   /** Seconds a received job stays invisible to other workers; must exceed the slowest extraction. */
   SQS_VISIBILITY_TIMEOUT: z.coerce.number().int().positive().default(300),
+  // Clarification loop (ADR 0008): email with a magic link to the web owner page.
+  SMTP_URL: z.string().default('smtp://mailpit:1025'),
+  MAIL_FROM: z.string().default('GowCredit <no-reply@gowcredit.local>'),
+  WEB_BASE_URL: z.string().url().default('http://localhost:5173'),
   // Eligibility (ADR 0007). Fixed evaluation date for reproducible runs; default is today.
   ELIGIBILITY_AS_OF: z
     .string()

@@ -66,6 +66,18 @@ curl -H "Authorization: Bearer $TOKEN" -F "file=@samples/cfdi/factura-ppd-anchor
 curl -H "Authorization: Bearer $TOKEN" localhost:3000/api/cases/<caseId>     # decision: outcome, score, rules, missing info, suggested advance
 ```
 
+## The clarification loop (owner)
+
+When a decision is `NEEDS_INFO`, the API emails the document owner (`ownerEmail` at upload) a magic link.
+Open Mailpit at http://localhost:8025 to see it. The link opens the owner page; the API side is:
+
+```bash
+curl -H "X-Owner-Token: <token from the email>" localhost:3000/api/owner/request
+curl -H "X-Owner-Token: <token>" -H 'content-type: application/json' \
+  -d '{"answers":[{"code":"INVOICE_DUE_DATE","value":"2026-12-20"}]}' localhost:3000/api/owner/answers
+# → {"status":"DECIDED","outcome":"QUALIFIES",...}; the link is single-use
+```
+
 ## Extraction eval and LLM modes
 
 ```bash

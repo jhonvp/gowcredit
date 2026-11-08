@@ -19,6 +19,10 @@ export class DecideCaseUseCase {
     private readonly logger: LoggerPort,
     /** Fixed evaluation date for reproducible runs (ELIGIBILITY_AS_OF); defaults to today. */
     private readonly asOfOverride: IsoDate | null = null,
+    /** Asks the owner when the outcome is NEEDS_INFO (clarification loop, ADR 0008). */
+    private readonly askOwner: {
+      execute(caseId: string, d: Decision): Promise<unknown>;
+    } | null = null,
   ) {}
 
   async execute(caseId: string): Promise<Decision | null> {
@@ -48,6 +52,7 @@ export class DecideCaseUseCase {
     await this.cases.saveDecision(caseId, decision);
     const target = decision.outcome === 'NEEDS_INFO' ? 'AWAITING_OWNER' : 'DECIDED';
     if (c.status !== target) await this.cases.transition(caseId, c.status, target);
+    if (decision.outcome === 'NEEDS_INFO') await this.askOwner?.execute(caseId, decision);
     this.logger.info('case decided', {
       caseId,
       outcome: decision.outcome,

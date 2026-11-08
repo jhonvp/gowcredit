@@ -9,6 +9,7 @@ import { PersistenceModule } from '../infrastructure/persistence/persistence.mod
 import { AuthController } from '../interfaces/http/auth.controller';
 import { DocumentsController } from '../interfaces/http/documents.controller';
 import { HealthController } from '../interfaces/http/health.controller';
+import { OwnerController } from '../interfaces/http/owner.controller';
 
 /**
  * Composition root (ADR 0001): the only place where ports are bound to adapters.
@@ -23,7 +24,7 @@ import { HealthController } from '../interfaces/http/health.controller';
     AuthModule,
     DocumentsModule,
   ],
-  controllers: [HealthController, AuthController, DocumentsController],
+  controllers: [HealthController, AuthController, DocumentsController, OwnerController],
   providers: [{ provide: CLOCK_PORT, useValue: { now: () => new Date() } }],
 })
 export class AppModule {}

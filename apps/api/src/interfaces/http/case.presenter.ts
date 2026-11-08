@@ -1,9 +1,10 @@
 import type { CaseView } from '@gowcredit/contracts';
 import type { CaseRecord } from '../../application/ports/case-repository.port';
+import type { ClarificationRecord } from '../../application/ports/clarification.ports';
 import { totalCredits, totalDebits } from '../../domain/statement/bank-statement';
 
 /** Maps the application record to the public contract (packages/contracts). */
-export function toCaseView(c: CaseRecord): CaseView {
+export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] = []): CaseView {
   return {
     id: c.id,
     status: c.status,
@@ -74,6 +75,16 @@ export function toCaseView(c: CaseRecord): CaseView {
             : null,
       };
     }),
+    clarifications: clarifications.map((r) => ({
+      round: r.round,
+      status: r.status,
+      questions: r.questions,
+      answers: (r.answers as unknown as Record<string, unknown>[] | null) ?? null,
+      forAnalyst: r.forAnalyst,
+      reason: r.reason,
+      createdAt: r.createdAt.toISOString(),
+      answeredAt: r.answeredAt?.toISOString() ?? null,
+    })),
     decision: c.decision
       ? {
           outcome: c.decision.outcome,
