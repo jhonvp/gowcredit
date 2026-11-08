@@ -1,0 +1,165 @@
+# Everything runs in Docker: the host only needs Docker (see README).
+name: gowcredit
+
+x-node: &node
+  build: { context: ., dockerfile: docker/Dockerfile, target: dev }
+  image: gowcredit-dev
+  working_dir: /app
+  volumes:
+    - .:/app
+    - node_modules:/app/node_modules
+    - api_node_modules:/app/apps/api/node_modules
+    - web_node_modules:/app/apps/web/node_modules
+    - contracts_node_modules:/app/packages/contracts/node_modules
+    - e2e_node_modules:/app/tests/e2e/node_modules
+    - pnpm_store:/pnpm/store
+  env_file:
+    - path: .env
+      required: false
+  environment: &node-env
+    NODE_ENV: development
+    DATABASE_URL: postgres://gowcredit:gowcredit@postgres:5432/gowcredit
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    LOG_PRETTY: ${LOG_PRETTY:-true}
+    AWS_ENDPOINT_URL: http://floci:4566
+    AWS_REGION: us-east-1
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    SMTP_URL: smtp://mailpit:1025
+    DD_TRACE_ENABLED: ${DD_TRACE_ENABLED:-false}
+    DD_AGENT_HOST: datadog-agent
+    DD_ENV: local
+
+services:
+  # One-shot: installs workspace deps into named volumes and builds shared contracts.
+  deps:
+    <<: *node
+    command: sh -c "pnpm install --frozen-lockfile && pnpm --filter @gowcredit/contracts build"
+
+  contracts:
+    <<: *node
+    command: pnpm --filter @gowcredit/contracts dev
+    depends_on:
+      deps: { condition: service_completed_successfully }
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gowcredit
+      POSTGRES_PASSWORD: gowcredit
+      POSTGRES_DB: gowcredit
+    ports: ['5432:5432']
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gowcredit -d gowcredit']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Local AWS (S3, SQS, Secrets Manager, SES) — ADR 0006.
+  floci:
+    image: floci/floci:latest
+    ports: ['4566:4566']
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_DEFAULT_REGION: us-east-1
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ['8025:8025', '1025:1025']
+
+  migrate:
+    <<: *node
+    command: pnpm --filter @gowcredit/api migration:run
+    depends_on:
+      deps: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *node
+    command: pnpm --filter @gowcredit/api dev
+    ports: ['3000:3000']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      contracts: { condition: service_started }
+      floci: { condition: service_started }
+      mailpit: { condition: service_started }
+
+  web:
+    <<: *node
+    command: pnpm --filter @gowcredit/web dev
+    ports: ['5173:5173']
+    environment:
+      <<: *node-env
+      API_PROXY_TARGET: http://api:3000
+    depends_on:
+      contracts: { condition: service_started }
+
+  # Ad-hoc commands: docker compose run --rm tools pnpm test
+  tools:
+    <<: *node
+    profiles: [tools]
+    command: bash
+    depends_on:
+      deps: { condition: service_completed_successfully }
+
+  # Browser E2E (Playwright). Image tag must match @playwright/test in tests/e2e/package.json.
+  e2e:
+    <<: *node
+    build: !reset null
+    image: mcr.microsoft.com/playwright:v1.65.0-noble
+    profiles: [test]
+    working_dir: /app/tests/e2e
+    environment:
+      <<: *node-env
+      E2E_BASE_URL: http://web:5173
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - e2e_node_modules:/app/tests/e2e/node_modules
+      - pnpm_store:/pnpm/store
+    # Node 26 in this image has no corepack; call the workspace-installed binary directly.
+    command: ./node_modules/.bin/playwright test
+
+  # Load tests (Artillery). amd64-only image → emulated on Apple Silicon.
+  load:
+    image: artilleryio/artillery:2.0.34
+    platform: linux/amd64
+    profiles: [test]
+    working_dir: /scripts
+    volumes: [./tests/load:/scripts]
+    command: run --target ${LOAD_TARGET:-http://api:3000} health.yml
+
+  terraform:
+    image: hashicorp/terraform:1.14
+    profiles: [infra]
+    working_dir: /infra
+    volumes: [./infra/terraform:/infra]
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    profiles: [observability]
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_APM_ENABLED: 'true'
+      DD_APM_NON_LOCAL_TRAFFIC: 'true'
+      DD_LOGS_ENABLED: 'true'
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: 'true'
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: 'true'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  pg_data:
+  node_modules:
+  api_node_modules:
+  web_node_modules:
+  contracts_node_modules:
+  e2e_node_modules:
+  pnpm_store:

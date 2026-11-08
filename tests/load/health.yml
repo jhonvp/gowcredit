@@ -1,0 +1,31 @@
+# Artillery load test — baseline for the API. Scenarios for upload/case endpoints are added as they land.
+# Run: make test-load (stack must be up). Fails the run if thresholds are not met.
+config:
+  # Override with: artillery run --target <url> health.yml (make test-load LOAD_TARGET=...)
+  target: http://api:3000
+  phases:
+    - name: warm-up
+      duration: 10
+      arrivalRate: 5
+    - name: ramp
+      duration: 20
+      arrivalRate: 5
+      rampTo: 50
+    - name: sustained
+      duration: 30
+      arrivalRate: 50
+  plugins:
+    ensure: {}
+  ensure:
+    thresholds:
+      - http.response_time.p95: 200
+      - http.response_time.p99: 500
+    conditions:
+      - expression: 'vusers.failed == 0'
+scenarios:
+  - name: health
+    flow:
+      - get:
+          url: /health
+          expect:
+            - statusCode: 200

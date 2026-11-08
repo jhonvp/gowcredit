@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# Format + lint only the STAGED files (like lint-staged), inside Docker. Full suite runs in CI (`make check`).
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+fmt=$(echo "$files" | grep -E '\.(ts|tsx|mts|mjs|js|json|md|ya?ml|css|html)$' | grep -v '^pnpm-lock.yaml$' | tr '\n' ' ')
+lint=$(echo "$files" | grep -E '\.(ts|tsx|mts|mjs)$' | tr '\n' ' ')
+[ -z "$fmt$lint" ] && exit 0
+docker compose run --rm --no-deps -T tools sh -c "
+  set -e
+  if [ -n '$fmt' ]; then pnpm exec prettier --check --ignore-unknown $fmt; fi
+  if [ -n '$lint' ]; then pnpm exec eslint --no-warn-ignored $lint; fi
+"

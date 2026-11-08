@@ -3,6 +3,7 @@
 **Status:** accepted
 
 **Decision.**
+
 - **Models:** T3 = `claude-haiku-5-5`, T4 = `claude-opus-5-5`, behind `LlmPort`.
 - **Input:** only the failing section, as text plus a page image.
 - **Output:** strict JSON via tool use, with a schema shared with the domain (zod).

@@ -6,6 +6,7 @@
 lines, though.
 
 **Decision.**
+
 - **Labels:** each text line is labeled
   `transaction_row | table_header | summary_field | continuation | noise`.
 - **Features:** relative x/y position, column alignment with the detected header, date/amount regex

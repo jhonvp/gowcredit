@@ -25,3 +25,11 @@ facturas/
 .DS_Store
 *.log
 tmp/
+
+# pnpm store (lives in a docker volume)
+.pnpm-store/
+
+# test artifacts
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+.husky/_/

@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+  - tests/e2e
+onlyBuiltDependencies:
+  - '@swc/core'
+  - argon2
+  - esbuild
+  - dd-trace
+  - '@datadog/native-metrics'
+  - '@datadog/pprof'
+  - '@datadog/native-appsec'
+  - '@datadog/native-iast-taint-tracking'
+  - '@datadog/native-iast-rewriter'

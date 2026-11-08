@@ -1,0 +1,51 @@
+{
+  "name": "@gowcredit/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "start:worker": "node dist/worker.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.mts",
+    "test:watch": "vitest",
+    "typeorm": "typeorm-ts-node-commonjs -d src/infrastructure/persistence/data-source.ts",
+    "migration:generate": "pnpm typeorm migration:generate",
+    "migration:run": "pnpm typeorm migration:run",
+    "migration:revert": "pnpm typeorm migration:revert"
+  },
+  "dependencies": {
+    "@gowcredit/contracts": "workspace:*",
+    "@nestjs/common": "^12.4.0",
+    "@nestjs/config": "^12.1.1",
+    "@nestjs/core": "^12.4.0",
+    "@nestjs/platform-express": "^12.4.0",
+    "@nestjs/terminus": "^12.1.0",
+    "@nestjs/typeorm": "^12.0.3",
+    "dd-trace": "^6.24.0",
+    "nestjs-pino": "^5.3.1",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^1.1.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.12",
+    "@nestjs/schematics": "^12.0.13",
+    "@nestjs/testing": "^12.4.0",
+    "@swc/core": "^1.16.22",
+    "@types/express": "^5.0.6",
+    "@types/supertest": "^7.2.1",
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^5.1.0"
+  }
+}

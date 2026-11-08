@@ -4,15 +4,15 @@
 
 **Decision.**
 
-| Need | Production | Local |
-|---|---|---|
-| API + worker | ECS Fargate (one image, two services) | Containers |
-| Database | RDS Postgres | Postgres container |
-| Documents | S3 | Floci S3 |
-| Cascade queue | SQS + DLQ | Floci SQS |
-| Secrets | Secrets Manager | Floci / `.env` |
-| Email | SES (Nodemailer transport) | Mailpit |
-| Images | ECR | Local build |
+| Need          | Production                            | Local              |
+| ------------- | ------------------------------------- | ------------------ |
+| API + worker  | ECS Fargate (one image, two services) | Containers         |
+| Database      | RDS Postgres                          | Postgres container |
+| Documents     | S3                                    | Floci S3           |
+| Cascade queue | SQS + DLQ                             | Floci SQS          |
+| Secrets       | Secrets Manager                       | Floci / `.env`     |
+| Email         | SES (Nodemailer transport)            | Mailpit            |
+| Images        | ECR                                   | Local build        |
 
 Terraform modules are shared by `envs/local` (provider endpoints → `http://localhost:4566`, Floci)
 and `envs/prod` (S3 backend for state).
@@ -23,6 +23,7 @@ sunset in March 2026), it runs on port 4566 and works with the standard AWS prov
 Manager), and the prod plan is validated with `terraform validate/plan`.
 
 **CI/CD (GitHub Actions).**
+
 - **PR:** lint, typecheck, unit tests, then Floci as a service: `terraform apply envs/local`,
   integration tests, extraction eval.
 - **main:** OIDC → `terraform apply envs/prod` → push to ECR → ECS deploy (documented; not run for

@@ -1,0 +1,15 @@
+{
+  "name": "@gowcredit/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "echo 'run e2e with: make test-e2e'",
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "^26.6.6",
+    "typescript": "~6.0.3"
+  }
+}
