@@ -29,7 +29,7 @@ import { ApiKeyStrategy, JWT_AUDIENCE, JWT_ISSUER, JwtStrategy, LocalStrategy } 
       inject: [AppConfig],
       useFactory: (config: AppConfig) => ({
         throttlers: loginThrottlers(config.auth.loginAttemptsPerMinute),
-        errorMessage: 'too many login attempts, try again in a minute',
+        errorMessage: 'Demasiados intentos. Espera un minuto y vuelve a intentarlo',
       }),
     }),
     JwtModule.registerAsync({

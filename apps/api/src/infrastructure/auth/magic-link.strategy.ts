@@ -30,9 +30,9 @@ export class MagicLinkStrategy extends PassportStrategy(Strategy, 'magic-link') 
 
   async validate(req: Request): Promise<Principal> {
     const token = req.header('x-owner-token');
-    if (!token || token.length > 200) throw new UnauthorizedException('missing owner token');
+    if (!token || token.length > 200) throw new UnauthorizedException('Falta el enlace del dueño');
     const r = await this.requests.findOpenByTokenHash(this.tokens.hash(token), new Date());
-    if (!r) throw new UnauthorizedException('link expired or already used');
+    if (!r) throw new UnauthorizedException('Este enlace ya fue usado o expiró');
     const c = await this.cases.findCase(r.caseId);
     return { kind: 'owner', caseId: r.caseId, requestId: r.id, email: c?.ownerEmail ?? '' };
   }

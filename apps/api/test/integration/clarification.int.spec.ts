@@ -147,7 +147,7 @@ describe('clarification loop (integration)', () => {
       .send({ question: '¿Por qué califica?' })
       .expect(200);
     expect(copilot.body).toMatchObject({ by: 'trace' });
-    expect(copilot.body.answer).toContain('QUALIFIES');
+    expect(copilot.body.answer).toContain('Califica');
     await http()
       .post(`/api/cases/${caseId}/copilot`)
       .set(supplier)

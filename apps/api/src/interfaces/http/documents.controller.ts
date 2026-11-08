@@ -86,10 +86,11 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<OwnerLinkResponse> {
     if (!this.config.mail.ownerLinkSharing)
-      throw new NotFoundException('owner link sharing is disabled in this environment');
+      throw new NotFoundException('Compartir el link del dueño está deshabilitado en este entorno');
     if (p.kind !== 'user') throw new NotFoundException();
     const out = await this.shareLink.execute(id, { userId: p.userId });
-    if (!out) throw new ConflictException('this case has no open owner request');
+    if (!out)
+      throw new ConflictException('Esta solicitud ya no tiene preguntas abiertas para el dueño');
     return { link: out.link, expiresAt: out.expiresAt.toISOString(), round: out.round };
   }
 
@@ -102,9 +103,10 @@ export class DocumentsController {
     @Body() body: unknown,
   ): Promise<CopilotResponse> {
     const parsed = CopilotRequestSchema.safeParse(body);
-    if (!parsed.success) throw new BadRequestException('question is required (max 1000 chars)');
+    if (!parsed.success)
+      throw new BadRequestException('Escribe una pregunta (máximo 1000 caracteres)');
     const out = await this.copilot.execute(id, parsed.data.question);
-    if (!out) throw new NotFoundException('case not found');
+    if (!out) throw new NotFoundException('Solicitud no encontrada');
     return out;
   }
 
@@ -117,7 +119,7 @@ export class DocumentsController {
   ): Promise<StreamableFile> {
     const doc = await this.cases.findDocument(id);
     const c = doc ? await this.cases.findCase(doc.caseId) : null;
-    if (!doc || !c || !canReadCase(p, c)) throw new NotFoundException('document not found');
+    if (!doc || !c || !canReadCase(p, c)) throw new NotFoundException('Documento no encontrado');
     const bytes = await this.storage.get(doc.storageKey);
     const pdf = doc.mimeType === 'application/pdf';
     // Supplier-controlled bytes: never let the browser sniff or run them. XML can carry XHTML
@@ -186,11 +188,11 @@ export class DocumentsController {
     opts: { caseId?: string; ownerEmail?: string },
   ): Promise<SubmitDocumentResponse> {
     const supplierId = submittingSupplier(p);
-    if (!supplierId) throw new ForbiddenException('only suppliers can submit documents');
-    if (!file) throw new BadRequestException('multipart field "file" is required');
+    if (!supplierId) throw new ForbiddenException('Solo los proveedores pueden enviar documentos');
+    if (!file) throw new BadRequestException('Selecciona un archivo');
     const ownerEmail = opts.ownerEmail?.trim() || (p.kind === 'user' ? p.email : null);
     if (ownerEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ownerEmail))
-      throw new BadRequestException('ownerEmail is not a valid email');
+      throw new BadRequestException('El correo del dueño no es válido');
     const updated = await this.submit.execute(
       {
         originalName: file.originalname,
@@ -213,7 +215,7 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<CaseView> {
     const found = await this.cases.findCase(id);
-    if (!found || !canReadCase(p, found)) throw new NotFoundException('case not found');
+    if (!found || !canReadCase(p, found)) throw new NotFoundException('Solicitud no encontrada');
     return toCaseView(found, await this.requests.listByCase(found.id));
   }
 }

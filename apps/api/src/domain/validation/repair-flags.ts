@@ -73,6 +73,16 @@ export function withRepairFlags(report: ValidationReport, flags: RepairFlags): V
     blocking: true,
     passed: false,
     detail: `${parts.join('; ')}: the document itself does not reconcile, needs human review`,
+    message: `${[
+      flags.movedRows
+        ? `${flags.movedRows} movimiento(s) cambiados de lugar respecto al documento`
+        : '',
+      flags.summaryRows
+        ? `${flags.summaryRows} movimiento(s) tomados del resumen, no impresos como movimientos`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('; ')}: el documento no cuadra por sí mismo y requiere revisión de un analista`,
   };
   return {
     checks: [...report.checks, check],

@@ -3,6 +3,13 @@ import type { CaseRecord } from '../../application/ports/case-repository.port';
 import type { ClarificationRecord } from '../../application/ports/clarification.ports';
 import { totalCredits, totalDebits } from '../../domain/statement/bank-statement';
 
+/** People read the Spanish `message`; the English `detail` stays for the LLM tiers and the eval. */
+const forPeople = <T extends { detail: string; message: string }>({
+  message,
+  detail: _modelFacing,
+  ...rest
+}: T) => ({ ...rest, detail: message });
+
 /** Maps the application record to the public contract (packages/contracts). */
 export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] = []): CaseView {
   return {
@@ -33,7 +40,7 @@ export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] 
               transferredTaxes: inv.invoice.transferredTaxes,
               withheldTaxes: inv.invoice.withheldTaxes,
               total: inv.invoice.total,
-              checks: inv.invoiceChecks ?? [],
+              checks: (inv.invoiceChecks ?? []).map(forPeople),
               extractedAt: inv.createdAt.toISOString(),
             }
           : null,
@@ -61,7 +68,7 @@ export function toCaseView(c: CaseRecord, clarifications: ClarificationRecord[] 
                   balance: t.balance,
                   page: t.page,
                 })),
-                checks: e.validation.checks,
+                checks: e.validation.checks.map(forPeople),
                 attempts: e.attempts.map((a) => ({
                   tier: a.tier,
                   passed: a.passed,

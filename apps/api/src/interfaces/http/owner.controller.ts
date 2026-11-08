@@ -76,8 +76,7 @@ export class OwnerController {
   ): Promise<OwnerAnswerResponse> {
     if (p.kind !== 'owner') throw new NotFoundException();
     const parsed = OwnerAnswersRequestSchema.safeParse(body);
-    if (!parsed.success)
-      throw new BadRequestException(parsed.error.issues.map((i) => i.message).join('; '));
+    if (!parsed.success) throw new BadRequestException('Las respuestas enviadas no son válidas');
     return this.answer.execute(p.requestId, parsed.data.answers);
   }
 
@@ -90,7 +89,7 @@ export class OwnerController {
     @UploadedFile() file?: MulterFile,
   ): Promise<SubmitDocumentResponse> {
     if (p.kind !== 'owner') throw new NotFoundException();
-    if (!file) throw new BadRequestException('multipart field "file" is required');
+    if (!file) throw new BadRequestException('Selecciona un archivo');
     const c = await this.cases.findCase(p.caseId);
     if (!c) throw new NotFoundException();
     const updated = await this.submit.execute(

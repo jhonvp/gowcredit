@@ -23,7 +23,7 @@ export class LocalStrategy extends PassportStrategy(LocalStrategyBase, 'local') 
 
   async validate(email: string, password: string): Promise<Principal> {
     const user = await this.auth.execute(email, password);
-    if (!user) throw new UnauthorizedException('invalid email or password');
+    if (!user) throw new UnauthorizedException('Correo o contraseña incorrectos');
     return { kind: 'user', userId: user.id, email: user.email, role: user.role };
   }
 }
@@ -75,7 +75,7 @@ export class ApiKeyStrategy extends PassportStrategy(HeaderAPIKeyStrategy, 'head
 
   async validate(secret: string): Promise<Principal> {
     const key = await this.keys.findBySecretHash(createHash('sha256').update(secret).digest('hex'));
-    if (!key) throw new UnauthorizedException('invalid api key');
+    if (!key) throw new UnauthorizedException('API key inválida');
     return { kind: 'api-key', keyId: key.id, supplierId: key.supplierId };
   }
 }

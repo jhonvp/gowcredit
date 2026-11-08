@@ -106,7 +106,7 @@ test('supplier → owner clarification → decision → analyst', async ({ page 
   // Copilot: in replay mode without fixtures it answers from the decision trace.
   await page.getByRole('button', { name: 'Preguntar' }).click();
   await expect(page.getByRole('region', { name: 'Copiloto' }).getByRole('status')).toContainText(
-    'QUALIFIES',
+    'Califica',
   );
   expect(cspViolations).toEqual([]);
 });

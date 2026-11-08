@@ -26,7 +26,13 @@ export interface CheckResult {
   passed: boolean;
   /** Blocking checks gate trust; non-blocking ones are reported only. */
   blocking: boolean;
+  /**
+   * For the LLM tiers and the eval report. T3/T4 prompts include it, so changing it changes the
+   * recorded fixtures' keys: keep it stable.
+   */
   detail: string;
+  /** The same result in Spanish, for people (web, emails). */
+  message: string;
 }
 
 export interface ValidationReport {
@@ -34,6 +40,13 @@ export interface ValidationReport {
   passed: boolean;
   failedSections: Section[];
 }
+
+const SUMMARY_FIELD_ES = {
+  periodStart: 'inicio del periodo',
+  periodEnd: 'fin del periodo',
+  openingBalance: 'saldo inicial',
+  closingBalance: 'saldo final',
+} as const;
 
 /** Reconciliation tolerance: 1.00 MXN (rounding in bank summaries). */
 export const RECONCILE_TOLERANCE: Cents = 100;
@@ -55,6 +68,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
     blocking: true,
     passed: missing.length === 0,
     detail: missing.length ? `missing: ${missing.join(', ')}` : 'all present',
+    message: missing.length
+      ? `Faltan: ${missing.map((k) => SUMMARY_FIELD_ES[k]).join(', ')}`
+      : 'Periodo y saldos presentes',
   });
 
   const periodOk =
@@ -69,6 +85,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
     detail: periodOk
       ? `${summary.periodStart} → ${summary.periodEnd}`
       : 'period missing or inverted',
+    message: periodOk
+      ? `Periodo ${summary.periodStart} → ${summary.periodEnd}`
+      : 'El periodo falta o termina antes de empezar',
   });
 
   checks.push({
@@ -77,6 +96,7 @@ export function validateStatement(s: BankStatement): ValidationReport {
     blocking: true,
     passed: transactions.length > 0,
     detail: `${transactions.length} rows`,
+    message: `${transactions.length} movimientos`,
   });
 
   // Every row: a real date, non-negative amounts, exactly one side. LLM tiers can emit anything,
@@ -100,6 +120,10 @@ export function validateStatement(s: BankStatement): ValidationReport {
         malformed === -1
           ? 'dates valid, one side per row'
           : `row ${malformed + 1} has an invalid date or not exactly one of debit/credit`,
+      message:
+        malformed === -1
+          ? 'Fechas válidas y un solo importe (cargo o abono) por movimiento'
+          : `El movimiento ${malformed + 1} tiene una fecha inválida o no tiene exactamente un cargo o un abono`,
     });
   }
 
@@ -116,6 +140,7 @@ export function validateStatement(s: BankStatement): ValidationReport {
       blocking: true,
       passed: Math.abs(diff) <= RECONCILE_TOLERANCE,
       detail: `opening + credits − debits = ${formatMxn(expected)} vs closing ${formatMxn(summary.closingBalance)} (diff ${formatMxn(diff)})`,
+      message: `Saldo inicial + abonos − cargos = ${formatMxn(expected)}; saldo final ${formatMxn(summary.closingBalance)} (diferencia ${formatMxn(diff)})`,
     });
   }
 
@@ -129,6 +154,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
       detail: chain.breaks.length
         ? `${chain.breaks.length}/${chain.checked} rows break the chain (first at row ${chain.breaks[0]})`
         : `${chain.checked} rows consistent`,
+      message: chain.breaks.length
+        ? `${chain.breaks.length} de ${chain.checked} saldos por movimiento no cuadran (el primero en el movimiento ${chain.breaks[0]})`
+        : `Los ${chain.checked} saldos por movimiento cuadran`,
     });
   }
 
@@ -144,6 +172,9 @@ export function validateStatement(s: BankStatement): ValidationReport {
       blocking: true,
       passed: out === 0,
       detail: out ? `${out} rows outside the period` : 'all rows inside the period',
+      message: out
+        ? `${out} movimientos fuera del periodo`
+        : 'Todos los movimientos dentro del periodo',
     });
   }
 
@@ -156,6 +187,7 @@ export function validateStatement(s: BankStatement): ValidationReport {
       blocking: false,
       passed: Math.abs(dc) <= RECONCILE_TOLERANCE && Math.abs(dd) <= RECONCILE_TOLERANCE,
       detail: `credits diff ${formatMxn(dc)}, debits diff ${formatMxn(dd)} (bank definitions of totals vary)`,
+      message: `Contra los totales impresos por el banco: abonos difieren ${formatMxn(dc)}, cargos ${formatMxn(dd)} (cada banco define sus totales distinto)`,
     });
   }
 

@@ -1,5 +1,5 @@
 import type { CfdiInvoice } from '../cfdi/cfdi-invoice';
-import type { CfdiCheck } from '../cfdi/cfdi-validators';
+import { type CfdiCheck, RFC_STATUS_ES } from '../cfdi/cfdi-validators';
 import type { BankStatement } from '../statement/bank-statement';
 import type { ValidationReport } from '../validation/statement-validators';
 import { daysBetween, type IsoDate } from '../shared/iso-date';
@@ -88,11 +88,15 @@ export function decide(input: DecisionInput): Decision {
       kind: 'integrity',
       passed: validation.passed,
       detail: validation.passed
-        ? 'statement fields present and arithmetic reconciles'
-        : failed.map((c) => `${c.id}: ${c.detail}`).join('; '),
+        ? 'El estado de cuenta tiene los datos necesarios y sus cifras cuadran'
+        : failed.map((c) => c.message).join('; '),
     });
     if (!validation.passed)
-      ask('STATEMENT_UNREADABLE', 'I1-I2', failed.map((c) => c.id).join(', '));
+      ask(
+        'STATEMENT_UNREADABLE',
+        'I1-I2',
+        `Una explicación o un documento legible: ${failed.map((c) => c.message).join('; ')}`,
+      );
     else {
       signals = statementSignals(s);
       const currency = s.summary.currency ?? 'MXN';
@@ -100,7 +104,7 @@ export function decide(input: DecisionInput): Decision {
         id: 'S-K1',
         kind: 'knockout',
         passed: currency === policy.statement.currency,
-        detail: `currency ${currency}`,
+        detail: `Moneda ${currency}`,
       });
       const age = daysBetween(s.summary.periodEnd as string, asOf);
       const recent = age <= policy.statement.maxAgeDays;
@@ -108,20 +112,20 @@ export function decide(input: DecisionInput): Decision {
         id: 'S-K2',
         kind: 'ask',
         passed: recent,
-        detail: `period ended ${age} days before ${asOf} (max ${policy.statement.maxAgeDays})`,
+        detail: `El periodo terminó ${age} días antes del ${asOf} (máximo ${policy.statement.maxAgeDays})`,
       });
       if (!recent)
         ask(
           'RECENT_STATEMENT',
           'S-K2',
-          `statement ends ${s.summary.periodEnd}; need one ending after ${shift(asOf, -policy.statement.maxAgeDays)}`,
+          `Un estado de cuenta que termine después del ${shift(asOf, -policy.statement.maxAgeDays)} (el recibido termina el ${s.summary.periodEnd})`,
         );
       const closing = s.summary.closingBalance ?? 0;
       rules.push({
         id: 'S-K3',
         kind: 'knockout',
         passed: closing >= 0 && signals.minBalance >= 0,
-        detail: `closing ${formatMxn(closing)}, lowest balance ${formatMxn(signals.minBalance)}`,
+        detail: `Saldo final ${formatMxn(closing)}; saldo más bajo ${formatMxn(signals.minBalance)}`,
       });
 
       const sc = policy.statement.score;
@@ -132,25 +136,25 @@ export function decide(input: DecisionInput): Decision {
           'S-S1',
           bandPoints(sc.avgMonthlyCredits, signals.avgMonthlyCredits),
           maxPoints(sc.avgMonthlyCredits),
-          `avg monthly credits ${formatMxn(signals.avgMonthlyCredits)}`,
+          `Abonos promedio por mes: ${formatMxn(signals.avgMonthlyCredits)}`,
         ],
         [
           'S-S2',
           bandPoints(sc.liquidityBuffer, liquidity),
           maxPoints(sc.liquidityBuffer),
-          `avg daily balance / monthly debits ${(100 * liquidity).toFixed(1)}%`,
+          `Saldo promedio diario / cargos del mes: ${(100 * liquidity).toFixed(1)}%`,
         ],
         [
           'S-S3',
           bandPoints(sc.bouncedEntries, signals.bouncedEntries),
           maxPoints(sc.bouncedEntries),
-          `${signals.bouncedEntries} returned/bounced entries`,
+          `${signals.bouncedEntries} movimientos devueltos o rechazados`,
         ],
         [
           'S-S4',
           bandPoints(sc.topPayerShare, signals.topPayerShare),
           maxPoints(sc.topPayerShare),
-          `top payer ${(100 * signals.topPayerShare).toFixed(1)}% of credits`,
+          `El principal pagador aporta ${(100 * signals.topPayerShare).toFixed(1)}% de los abonos`,
         ],
         [
           'S-S5',
@@ -158,7 +162,7 @@ export function decide(input: DecisionInput): Decision {
             ? 0
             : bandPoints(sc.creditDebitRatio, signals.creditDebitRatio),
           maxPoints(sc.creditDebitRatio),
-          `credits/debits ${signals.creditDebitRatio?.toFixed(2) ?? 'n/a'}`,
+          `Abonos / cargos: ${signals.creditDebitRatio?.toFixed(2) ?? 'sin cargos'}`,
         ],
       ];
       score = 0;
@@ -178,16 +182,16 @@ export function decide(input: DecisionInput): Decision {
       id: 'I1-I3',
       kind: 'integrity',
       passed: intact,
-      detail: integrity.map((x) => `${x.id}: ${x.detail}`).join('; '),
+      detail: integrity.map((x) => x.message).join('; '),
     });
     if (!intact)
       ask(
         'INVOICE_INCONSISTENT',
         'I1-I3',
-        integrity
+        `Una explicación o el XML correcto: ${integrity
           .filter((x) => !x.passed)
-          .map((x) => x.id)
-          .join(', '),
+          .map((x) => x.message)
+          .join('; ')}`,
       );
 
     const issuer = rfcStatus(c.issuerRfc);
@@ -197,9 +201,10 @@ export function decide(input: DecisionInput): Decision {
       id: 'I4',
       kind: 'integrity',
       passed: rfcOk,
-      detail: `issuer ${issuer}${facts.issuerRfcConfirmed ? ' (confirmed by owner)' : ''}, receiver ${receiver}`,
+      detail: `RFC emisor ${RFC_STATUS_ES[issuer]}${facts.issuerRfcConfirmed ? ' (confirmado por el dueño)' : ''}; RFC receptor ${RFC_STATUS_ES[receiver]}`,
     });
-    if (!rfcOk) ask('RFC_CONFIRMATION', 'I4', `issuer RFC is ${issuer}`);
+    if (!rfcOk)
+      ask('RFC_CONFIRMATION', 'I4', `Confirmar el RFC del emisor (${RFC_STATUS_ES[issuer]})`);
 
     if (intact) {
       const inv = policy.invoice;
@@ -207,58 +212,63 @@ export function decide(input: DecisionInput): Decision {
         id: 'C-K1',
         kind: 'knockout',
         passed: inv.voucherTypes.includes(c.voucherType ?? ''),
-        detail: `voucher type ${c.voucherType ?? 'missing'}`,
+        detail: `Tipo de comprobante: ${c.voucherType ?? 'ausente'}`,
       });
       rules.push({
         id: 'C-K2',
         kind: 'knockout',
         passed: inv.paymentMethods.includes(c.paymentMethod ?? ''),
-        detail: `payment method ${c.paymentMethod ?? 'missing'}`,
+        detail: `Método de pago: ${c.paymentMethod ?? 'ausente'}`,
       });
       rules.push({
         id: 'C-K3',
         kind: 'knockout',
         passed: inv.anchorBuyers.includes((c.receiverRfc ?? '').toUpperCase()),
-        detail: 'receiver RFC in the anchor-buyer list',
+        detail: 'El RFC receptor está en la lista de compradores ancla',
       });
       const total = c.total ?? 0;
       rules.push({
         id: 'C-K5',
         kind: 'knockout',
         passed: total >= inv.total.min && total <= inv.total.max,
-        detail: `total ${formatMxn(total)} (range ${formatMxn(inv.total.min)}–${formatMxn(inv.total.max)})`,
+        detail: `Total ${formatMxn(total)} (rango ${formatMxn(inv.total.min)}–${formatMxn(inv.total.max)})`,
       });
       if (!facts.invoiceDueDate) {
         rules.push({
           id: 'C-K4',
           kind: 'ask',
           passed: false,
-          detail: 'a CFDI carries no due date',
+          detail: 'El CFDI no incluye la fecha de vencimiento',
         });
-        ask('INVOICE_DUE_DATE', 'C-K4', 'due date of the invoice');
+        ask('INVOICE_DUE_DATE', 'C-K4', 'La fecha de vencimiento de la factura');
       } else {
         const days = daysBetween(asOf, facts.invoiceDueDate);
         rules.push({
           id: 'C-K4',
           kind: 'knockout',
           passed: days >= inv.dueInDays.min && days <= inv.dueInDays.max,
-          detail: `due in ${days} days (range ${inv.dueInDays.min}–${inv.dueInDays.max})`,
+          detail: `Vence en ${days} días (rango ${inv.dueInDays.min}–${inv.dueInDays.max})`,
         });
       }
       const sat = facts.satStatus ?? 'unknown';
       if (sat === 'unknown') {
-        rules.push({ id: 'C-K6', kind: 'ask', passed: false, detail: 'SAT status unknown' });
-        ask('SAT_STATUS', 'C-K6', 'SAT cancellation status could not be verified');
+        rules.push({
+          id: 'C-K6',
+          kind: 'ask',
+          passed: false,
+          detail: 'Estado en el SAT sin verificar',
+        });
+        ask('SAT_STATUS', 'C-K6', 'Confirmar que la factura no fue cancelada en el SAT');
       } else
         rules.push({
           id: 'C-K6',
           kind: 'knockout',
           passed: sat === 'active',
-          detail: `SAT status ${sat}`,
+          detail: `Estado en el SAT: ${sat === 'active' ? 'vigente' : 'cancelada'}`,
         });
     }
     if (!input.statement)
-      ask('SUPPLIER_STATEMENT', 'COMBINED', 'a recent bank statement of the supplier');
+      ask('SUPPLIER_STATEMENT', 'COMBINED', 'Un estado de cuenta bancario reciente del proveedor');
   }
 
   // ---- Combine ----
@@ -277,7 +287,7 @@ export function decide(input: DecisionInput): Decision {
       passed: score >= policy.minScore,
       points: score,
       maxPoints: 100,
-      detail: `score ${score} (min ${policy.minScore})`,
+      detail: `Puntaje ${score} (mínimo ${policy.minScore})`,
     });
 
   // Only questions that can still change the outcome are kept: after a knockout, asking is pointless.

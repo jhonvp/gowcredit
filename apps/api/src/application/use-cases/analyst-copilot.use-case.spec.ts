@@ -101,7 +101,7 @@ describe('AnalystCopilotUseCase', () => {
       '¿Por qué?',
     );
     expect(out?.by).toBe('trace');
-    expect(out?.answer).toContain('DOES_NOT_QUALIFY con puntaje 58/100');
+    expect(out?.answer).toContain('No califica con puntaje 58/100');
     expect(out?.answer).toContain('S-S2 0/20');
   });
 });
