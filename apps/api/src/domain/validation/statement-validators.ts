@@ -14,7 +14,9 @@ export type CheckId =
   | 'rows-reconcile'
   | 'running-balance'
   | 'dates-in-period'
-  | 'reported-totals';
+  | 'reported-totals'
+  /** Added by withRepairFlags (repair-flags.ts), never by validateStatement. */
+  | 'rows-as-printed';
 
 export type Section = 'summary' | 'transactions';
 

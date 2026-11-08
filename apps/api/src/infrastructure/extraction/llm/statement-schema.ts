@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { BankStatement, Tier, Transaction } from '../../../domain/statement/bank-statement';
+import {
+  type BankStatement,
+  SUMMARY_ROW_PREFIX,
+  type Tier,
+  type Transaction,
+} from '../../../domain/statement/bank-statement';
 import { formatMxn, fromCents, toCents } from '../../../domain/shared/money';
 import { isIsoDate } from '../../../domain/shared/iso-date';
 
@@ -74,8 +79,7 @@ export const llmStatementSchema = z.object({
 export type LlmRow = z.infer<typeof llmRowSchema>;
 export type LlmStatement = z.infer<typeof llmStatementSchema>;
 
-/** Marks rows synthesized from the summary section so analysts can tell them apart. */
-export const SUMMARY_ROW_PREFIX = '[resumen] ';
+export { SUMMARY_ROW_PREFIX };
 
 const cents = (v: number | null): number | null => (v === null ? null : toCents(v));
 const date = (v: string | null): string | null => (v !== null && isIsoDate(v) ? v : null);
