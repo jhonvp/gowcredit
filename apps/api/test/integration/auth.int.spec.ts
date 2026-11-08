@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../src/bootstrap/app.module';
+import { configureHttpApp } from '../../src/bootstrap/http-app';
 import { bearer, DEMO_API_KEY, login } from './support/auth';
 import { tinyPdf } from './support/tiny-pdf';
 
@@ -19,7 +20,7 @@ describe('auth (integration)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api', { exclude: ['health'] });
+    configureHttpApp(app);
     await app.init();
     supplier = bearer(await login(app, 'supplier@demo.mx'));
     supplier2 = bearer(await login(app, 'supplier2@demo.mx'));
@@ -56,6 +57,15 @@ describe('auth (integration)', () => {
       .expect(401);
     const me = await http().get('/api/auth/me').set(supplier).expect(200);
     expect(me.body).toMatchObject({ email: 'supplier@demo.mx', role: 'supplier' });
+  });
+
+  it('sends security headers on every response', async () => {
+    const res = await http().get('/api/cases').set(supplier).expect(200);
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['referrer-policy']).toBe('no-referrer');
+    expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(res.headers['content-security-policy']).toContain("default-src 'self'");
+    expect(res.headers['x-powered-by']).toBeUndefined();
   });
 
   it('requires authentication everywhere except health and login', async () => {

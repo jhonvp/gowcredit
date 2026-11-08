@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../src/bootstrap/app.module';
+import { configureHttpApp } from '../../src/bootstrap/http-app';
 
 describe('GET /health (integration)', () => {
   let app: INestApplication;
@@ -11,7 +12,7 @@ describe('GET /health (integration)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api', { exclude: ['health'] });
+    configureHttpApp(app);
     await app.init();
   });
 

@@ -29,6 +29,9 @@ export class AppConfig {
       jwtTtlSeconds: this.config.get('JWT_TTL_SECONDS', { infer: true }),
     };
   }
+  get trustProxyHops(): number {
+    return this.config.get('TRUST_PROXY_HOPS', { infer: true });
+  }
   get documents(): {
     bucket: string;
     queueName: string;

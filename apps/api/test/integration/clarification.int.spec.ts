@@ -9,6 +9,7 @@ import { JOB_QUEUE_PORT } from '../../src/application/ports/job-queue.port';
 import { LOGGER_PORT } from '../../src/application/ports/logger.port';
 import { ProcessDocumentUseCase } from '../../src/application/use-cases/process-document.use-case';
 import { AppModule } from '../../src/bootstrap/app.module';
+import { configureHttpApp } from '../../src/bootstrap/http-app';
 import { ExtractionWorker } from '../../src/interfaces/worker/extraction.worker';
 import { bearer, login } from './support/auth';
 import { demoStatementPdf } from './support/demo-statement';
@@ -52,7 +53,7 @@ describe('clarification loop (integration)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api', { exclude: ['health'] });
+    configureHttpApp(app);
     await app.init();
     worker = new ExtractionWorker(
       app.get(JOB_QUEUE_PORT),
