@@ -6,3 +6,6 @@ fixtures/llm
 tests/e2e/playwright-report
 tests/e2e/test-results
 eval/reports
+
+# Third-party skills (pinned in skills-lock.json; updated with `npx skills update`)
+.claude/skills/
