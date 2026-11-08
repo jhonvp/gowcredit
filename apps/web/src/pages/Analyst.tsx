@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { api } from '../api';
+import { api, type DocumentFile } from '../api';
 import { useAuth } from '../auth';
 import {
   ClarificationHistory,
@@ -58,22 +58,31 @@ export function AnalystCase() {
   const c = q.data;
   const [selected, setSelected] = useState<string | null>(null);
   const docId = selected ?? c?.documents[0]?.id ?? null;
-  const [file, setFile] = useState<
-    { kind: 'pdf'; url: string } | { kind: 'text'; text: string } | null
-  >(null);
+  // The loaded file is tagged with its document id, so a slow response for a document the analyst
+  // already left is never shown in place of the selected one.
+  const [loaded, setLoaded] = useState<{ docId: string; file: DocumentFile | null } | null>(null);
+  const file = loaded?.docId === docId ? loaded.file : null;
   const doc = c?.documents.find((d) => d.id === docId);
 
   useEffect(() => {
     if (!docId || !token) return;
+    let cancelled = false;
     let url: string | null = null;
     api.documentFile(token, docId).then(
       (f) => {
-        if (f.kind === 'pdf') url = f.url;
-        setFile(f);
+        if (f.kind === 'pdf') {
+          // Arrived after cleanup: nobody will show it, so release the blob now.
+          if (cancelled) return URL.revokeObjectURL(f.url);
+          url = f.url;
+        }
+        if (!cancelled) setLoaded({ docId, file: f });
       },
-      () => setFile(null),
+      () => {
+        if (!cancelled) setLoaded({ docId, file: null });
+      },
     );
     return () => {
+      cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
   }, [docId, token]);

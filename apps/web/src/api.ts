@@ -23,6 +23,9 @@ import type { z } from 'zod';
  * Thin API client. Every response is parsed with the shared zod contracts (ADR 0011), so an API/web
  * drift fails loudly here instead of rendering wrong data.
  */
+/** A downloaded document: PDFs as an object URL for the viewer, anything else as plain text. */
+export type DocumentFile = { kind: 'pdf'; url: string } | { kind: 'text'; text: string };
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -90,10 +93,7 @@ export const api = {
    * (CFDI XML) comes back as text and is shown escaped: an uploaded XML can carry XHTML <script>, and
    * a blob: URL has this app's origin, so it must never be rendered as a document.
    */
-  async documentFile(
-    token: string,
-    documentId: string,
-  ): Promise<{ kind: 'pdf'; url: string } | { kind: 'text'; text: string }> {
+  async documentFile(token: string, documentId: string): Promise<DocumentFile> {
     const res = await fetch(`/api/documents/${documentId}/file`, {
       headers: { Authorization: `Bearer ${token}` },
     });
