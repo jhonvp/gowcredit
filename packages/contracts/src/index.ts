@@ -75,14 +75,70 @@ export const ExtractionViewSchema = z.object({
 });
 export type ExtractionView = z.infer<typeof ExtractionViewSchema>;
 
+export const InvoiceViewSchema = z.object({
+  uuid: z.string().nullable(),
+  voucherType: z.string().nullable(),
+  paymentMethod: z.string().nullable(),
+  issuerRfc: z.string().nullable(),
+  issuerName: z.string().nullable(),
+  receiverRfc: z.string().nullable(),
+  receiverName: z.string().nullable(),
+  currency: z.string().nullable(),
+  issueDate: z.string().nullable(),
+  subtotal: Cents.nullable(),
+  transferredTaxes: Cents,
+  withheldTaxes: Cents,
+  total: Cents.nullable(),
+  checks: z.array(z.object({ id: z.string(), passed: z.boolean(), detail: z.string() })),
+  extractedAt: z.string(),
+});
+export type InvoiceView = z.infer<typeof InvoiceViewSchema>;
+
 export const DocumentViewSchema = z.object({
   id: z.string().uuid(),
   originalName: z.string(),
   docType: DocumentTypeSchema.nullable(),
   uploadedAt: z.string(),
+  /** Bank statement extraction (null for invoices or while extracting). */
   extraction: ExtractionViewSchema.nullable(),
+  /** CFDI invoice data (null for statements or while extracting). */
+  invoice: InvoiceViewSchema.nullable(),
 });
 export type DocumentView = z.infer<typeof DocumentViewSchema>;
+
+export const MissingInfoCodeSchema = z.enum([
+  'STATEMENT_UNREADABLE',
+  'RECENT_STATEMENT',
+  'INVOICE_INCONSISTENT',
+  'RFC_CONFIRMATION',
+  'INVOICE_DUE_DATE',
+  'SAT_STATUS',
+  'SUPPLIER_STATEMENT',
+]);
+export type MissingInfoCode = z.infer<typeof MissingInfoCodeSchema>;
+
+export const DecisionViewSchema = z.object({
+  outcome: DecisionOutcomeSchema,
+  score: z.number().int().nullable(),
+  suggestedAdvance: Cents.nullable(),
+  policyVersion: z.string(),
+  asOf: z.string(),
+  rules: z.array(
+    z.object({
+      id: z.string(),
+      kind: z.enum(['integrity', 'knockout', 'ask', 'score']),
+      passed: z.boolean(),
+      detail: z.string(),
+      points: z.number().optional(),
+      maxPoints: z.number().optional(),
+    }),
+  ),
+  missing: z.array(
+    z.object({ code: MissingInfoCodeSchema, ruleId: z.string(), detail: z.string() }),
+  ),
+  decidedAt: z.string(),
+});
+export type DecisionView = z.infer<typeof DecisionViewSchema>;
 
 export const CaseViewSchema = z.object({
   id: z.string().uuid(),
@@ -90,6 +146,7 @@ export const CaseViewSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   documents: z.array(DocumentViewSchema),
+  decision: DecisionViewSchema.nullable(),
 });
 export type CaseView = z.infer<typeof CaseViewSchema>;
 

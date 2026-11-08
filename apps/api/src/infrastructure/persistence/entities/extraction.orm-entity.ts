@@ -6,6 +6,8 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { CfdiInvoice } from '../../../domain/cfdi/cfdi-invoice';
+import type { CfdiCheck } from '../../../domain/cfdi/cfdi-validators';
 import type { BankStatement, Tier } from '../../../domain/statement/bank-statement';
 import type { ValidationReport } from '../../../domain/validation/statement-validators';
 import type { TierAttempt } from '../../../application/use-cases/extract-bank-statement.use-case';
@@ -30,11 +32,20 @@ export class ExtractionOrmEntity {
   @Column({ name: 'needs_review', type: 'boolean' })
   needsReview: boolean;
 
-  @Column({ type: 'jsonb' })
-  statement: BankStatement;
+  @Column({ type: 'varchar', length: 16 })
+  kind: 'bank_statement' | 'cfdi';
 
-  @Column({ type: 'jsonb' })
-  validation: ValidationReport;
+  @Column({ type: 'jsonb', nullable: true })
+  statement: BankStatement | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  validation: ValidationReport | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  invoice: CfdiInvoice | null;
+
+  @Column({ name: 'invoice_checks', type: 'jsonb', nullable: true })
+  invoiceChecks: CfdiCheck[] | null;
 
   @Column({ type: 'jsonb' })
   attempts: TierAttempt[];

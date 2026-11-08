@@ -62,6 +62,11 @@ export class ExtractionWorker implements OnApplicationBootstrap, OnApplicationSh
   ): Promise<void> {
     try {
       const result = await this.process.execute(job);
+      // Another document of the case is running: leave the message; SQS redelivers it later.
+      if (result === 'busy') {
+        this.logger.info('case busy; job left for redelivery', { caseId: job.caseId, attempts });
+        return;
+      }
       await this.queue.ack(receipt);
       this.logger.info('job done', { caseId: job.caseId, result, attempts });
     } catch (e) {

@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CaseStatus } from '../../domain/case/case-status';
+import type { CfdiInvoice } from '../../domain/cfdi/cfdi-invoice';
+import type { Decision, DecisionFacts } from '../../domain/eligibility/engine';
 import { canTransition } from '../../domain/case/case-status';
 import type {
   CaseRecord,
   CaseRepositoryPort,
   ExtractionRecord,
 } from '../ports/case-repository.port';
+import type { CfdiParserPort } from '../ports/eligibility.ports';
 import type { ExtractDocumentJob, JobQueuePort, ReceivedJob } from '../ports/job-queue.port';
 import type { LoggerPort } from '../ports/logger.port';
 import type { ObjectStoragePort } from '../ports/object-storage.port';
@@ -13,6 +16,7 @@ import type {
   ExtractBankStatementUseCase,
   ExtractionOutcome,
 } from './extract-bank-statement.use-case';
+import type { DecideCaseUseCase } from './decide-case.use-case';
 import { ProcessDocumentUseCase } from './process-document.use-case';
 import {
   sniffKind,
@@ -59,6 +63,8 @@ class FakeCases implements CaseRepositoryPort {
     const c: CaseRecord = {
       id: caseId,
       status: 'RECEIVED',
+      facts: {},
+      decision: null,
       createdAt: now,
       updatedAt: now,
       documents: [{ ...d, caseId, docType: null, createdAt: now }],
@@ -66,6 +72,17 @@ class FakeCases implements CaseRepositoryPort {
     };
     this.cases.set(caseId, c);
     return structuredClone(c);
+  }
+  async addDocument(caseId: string, d: Parameters<CaseRepositoryPort['addDocument']>[1]) {
+    this.cases.get(caseId)?.documents.push({ ...d, caseId, docType: null, createdAt: new Date() });
+  }
+  async saveDecision(caseId: string, decision: Decision) {
+    const c = this.cases.get(caseId);
+    if (c) c.decision = { ...decision, createdAt: new Date() };
+  }
+  async setFacts(caseId: string, facts: DecisionFacts) {
+    const c = this.cases.get(caseId);
+    if (c) c.facts = facts;
   }
   async findCase(id: string) {
     const c = this.cases.get(id);
@@ -120,14 +137,39 @@ function setup(extract: () => Promise<ExtractionOutcome>) {
   const queue = new InMemoryJobQueue();
   const cases = new FakeCases();
   const submit = new SubmitDocumentUseCase(storage, queue, cases, ids, logger);
+  const decideCase = { execute: vi.fn(async () => null) };
+  const cfdi: CfdiParserPort = { parse: vi.fn(() => ({ ...INVOICE })) };
   const process = new ProcessDocumentUseCase(
     cases,
     storage,
     { execute: vi.fn(extract) } as unknown as ExtractBankStatementUseCase,
+    cfdi,
+    decideCase as unknown as DecideCaseUseCase,
     logger,
   );
-  return { storage, queue, cases, submit, process };
+  return { storage, queue, cases, submit, process, decideCase, cfdi };
 }
+
+const INVOICE: CfdiInvoice = {
+  uuid: 'U-1',
+  version: '4.0',
+  voucherType: 'I',
+  paymentMethod: 'PPD',
+  issuerRfc: 'PRO010203AB4',
+  issuerName: null,
+  receiverRfc: 'DCM850101AB1',
+  receiverName: null,
+  currency: 'MXN',
+  exchangeRate: null,
+  issueDate: '2025-04-01',
+  subtotal: 100,
+  discount: 0,
+  transferredTaxes: 16,
+  withheldTaxes: 0,
+  total: 116,
+  conceptCount: 1,
+};
+const xml = new TextEncoder().encode('<?xml version="1.0"?><cfdi:Comprobante/>');
 
 describe('sniffKind', () => {
   it('detects PDF and CFDI XML from the bytes, BOM included', () => {
@@ -163,28 +205,57 @@ describe('SubmitDocumentUseCase', () => {
 });
 
 describe('ProcessDocumentUseCase', () => {
-  it('extracts, saves the result and moves the case to EXTRACTED or AWAITING_OWNER', async () => {
-    for (const [review, status, result] of [
-      [false, 'EXTRACTED', 'extracted'],
-      [true, 'AWAITING_OWNER', 'needs-review'],
-    ] as const) {
-      const { queue, cases, submit, process } = setup(async () => outcome(review));
+  it('extracts a statement, saves it, marks the case EXTRACTED and runs the decision', async () => {
+    for (const review of [false, true]) {
+      const { queue, cases, submit, process, decideCase } = setup(async () => outcome(review));
       const c = await submit.execute(file());
       const [job] = await queue.receive(1);
-      expect(await process.execute(job!.job)).toBe(result);
+      expect(await process.execute(job!.job)).toBe('processed');
       const saved = await cases.findCase(c.id);
-      expect(saved?.status).toBe(status);
-      expect(saved?.extractions).toHaveLength(1);
+      expect(saved?.status).toBe('EXTRACTED');
+      expect(saved?.extractions[0]).toMatchObject({ kind: 'bank_statement', needsReview: review });
       expect(saved?.documents[0]?.docType).toBe('BANK_STATEMENT');
+      expect(decideCase.execute).toHaveBeenCalledWith(c.id);
     }
   });
 
-  it('skips a duplicate delivery while the case is being extracted', async () => {
+  it('parses and validates a CFDI XML instead of running the statement cascade', async () => {
+    const { queue, cases, submit, process } = setup(async () => {
+      throw new Error('cascade must not run for XML');
+    });
+    const c = await submit.execute(file(xml));
+    const [job] = await queue.receive(1);
+    expect(await process.execute(job!.job)).toBe('processed');
+    const saved = await cases.findCase(c.id);
+    expect(saved?.documents[0]?.docType).toBe('CFDI_INVOICE');
+    expect(saved?.extractions[0]).toMatchObject({
+      kind: 'cfdi',
+      needsReview: false,
+      statement: null,
+    });
+    expect(saved?.extractions[0]?.invoiceChecks?.every((x) => x.passed)).toBe(true);
+  });
+
+  it('attaches a second document to a case and acks duplicates', async () => {
+    const { queue, cases, submit, process } = setup(async () => outcome(false));
+    const c = await submit.execute(file());
+    await submit.execute(file(xml), c.id);
+    const jobs = await queue.receive(10);
+    expect(jobs).toHaveLength(2);
+    for (const j of jobs) expect(await process.execute(j.job)).toBe('processed');
+    expect((await cases.findCase(c.id))?.extractions.map((e) => e.kind)).toEqual([
+      'bank_statement',
+      'cfdi',
+    ]);
+    expect(await process.execute(jobs[0]!.job)).toBe('duplicate');
+  });
+
+  it('reports busy while another document of the case is extracting', async () => {
     const { queue, cases, submit, process } = setup(async () => outcome(false));
     const c = await submit.execute(file());
     await cases.transition(c.id, 'RECEIVED', 'EXTRACTING');
     const [job] = await queue.receive(1);
-    expect(await process.execute(job!.job)).toBe('skipped');
+    expect(await process.execute(job!.job)).toBe('busy');
   });
 
   it('marks the case FAILED and rethrows so the queue redelivers; the retry succeeds', async () => {
@@ -197,6 +268,6 @@ describe('ProcessDocumentUseCase', () => {
     const [job] = await queue.receive(1);
     await expect(process.execute(job!.job)).rejects.toThrow('poppler crashed');
     expect((await cases.findCase(c.id))?.status).toBe('FAILED');
-    expect(await process.execute(job!.job)).toBe('extracted');
+    expect(await process.execute(job!.job)).toBe('processed');
   });
 });

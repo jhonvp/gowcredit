@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic CFDI 4.0 for local demos and tests: made-up RFCs and UUID. Paid in one exhibition (PUE): nothing to advance. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="1024" Fecha="2025-04-01T10:15:00" SubTotal="100000.00" Moneda="MXN" Total="116000.00"
+  TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" FormaPago="03" LugarExpedicion="64000">
+  <cfdi:Emisor Rfc="PRO010203AB4" Nombre="PROVEEDOR DEMO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="DCM850101AB1" Nombre="DISTRIBUIDORA DEMO" DomicilioFiscalReceptor="64000" RegimenFiscalReceptor="601" UsoCFDI="G01"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="31161500" Cantidad="1000" ClaveUnidad="H87" Descripcion="Tornillo acero" ValorUnitario="100.00" Importe="100000.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="100000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="16000.00"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="16000.00">
+    <cfdi:Traslados><cfdi:Traslado Base="100000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="16000.00"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="6f1b2c3d-0000-4000-8000-000000000002" FechaTimbrado="2025-04-01T10:16:00" RfcProvCertif="SAT970701NN3" SelloCFD="x" NoCertificadoSAT="00001000000500000000" SelloSAT="x"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
