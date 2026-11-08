@@ -50,6 +50,8 @@ export const TransactionSchema = z.object({
   credit: Cents,
   balance: Cents.nullable(),
   page: z.number().int(),
+  /** Transfer between the holder's own pockets: shown, but not income or spending. */
+  internal: z.boolean(),
 });
 export type TransactionView = z.infer<typeof TransactionSchema>;
 
@@ -66,6 +68,11 @@ export const ExtractionViewSchema = z.object({
     closingBalance: Cents.nullable(),
     totalCredits: Cents,
     totalDebits: Cents,
+    /** Printed only in the summary and part of the balance (e.g. interest). Signed. */
+    otherItems: z.array(
+      z.object({ concept: z.string(), amount: z.number().int(), description: z.string() }),
+    ),
+    internalTransfers: z.object({ pairs: z.number().int(), amount: Cents }),
   }),
   transactions: z.array(TransactionSchema),
   checks: z.array(ValidationCheckSchema),

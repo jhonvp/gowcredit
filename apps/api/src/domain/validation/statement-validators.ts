@@ -1,4 +1,9 @@
-import { type BankStatement, totalCredits, totalDebits } from '../statement/bank-statement';
+import {
+  type BankStatement,
+  otherItemsTotal,
+  totalCredits,
+  totalDebits,
+} from '../statement/bank-statement';
 import { daysBetween, isIsoDate } from '../shared/iso-date';
 import { type Cents, formatMxn } from '../shared/money';
 
@@ -132,30 +137,35 @@ export function validateStatement(s: BankStatement): ValidationReport {
     summary.closingBalance !== null &&
     transactions.length > 0
   ) {
-    const expected = summary.openingBalance + totalCredits(s) - totalDebits(s);
+    const others = otherItemsTotal(summary);
+    const expected = summary.openingBalance + totalCredits(s) - totalDebits(s) + others;
     const diff = expected - summary.closingBalance;
     checks.push({
       id: 'rows-reconcile',
       section: 'transactions',
       blocking: true,
       passed: Math.abs(diff) <= RECONCILE_TOLERANCE,
-      detail: `opening + credits − debits = ${formatMxn(expected)} vs closing ${formatMxn(summary.closingBalance)} (diff ${formatMxn(diff)})`,
-      message: `Saldo inicial + abonos − cargos = ${formatMxn(expected)}; saldo final ${formatMxn(summary.closingBalance)} (diferencia ${formatMxn(diff)})`,
+      detail: `opening + credits − debits${others ? ' + other items' : ''} = ${formatMxn(expected)} vs closing ${formatMxn(summary.closingBalance)} (diff ${formatMxn(diff)})`,
+      message: `Saldo inicial + abonos − cargos${others ? ' + otros' : ''} = ${formatMxn(expected)}; saldo final ${formatMxn(summary.closingBalance)} (diferencia ${formatMxn(diff)})`,
     });
   }
 
   const chain = runningBalanceBreaks(s);
   if (chain.checked > 0) {
+    const reconciles = checks.some((c) => c.id === 'rows-reconcile' && c.passed);
+    const onlyPrintingOrder = reconciles && breaksAreInTheTail(chain.breaks, transactions.length);
     checks.push({
       id: 'running-balance',
       section: 'transactions',
-      blocking: true,
+      blocking: !onlyPrintingOrder,
       passed: chain.breaks.length === 0,
       detail: chain.breaks.length
         ? `${chain.breaks.length}/${chain.checked} rows break the chain (first at row ${chain.breaks[0]})`
         : `${chain.checked} rows consistent`,
       message: chain.breaks.length
-        ? `${chain.breaks.length} de ${chain.checked} saldos por movimiento no cuadran (el primero en el movimiento ${chain.breaks[0]})`
+        ? onlyPrintingOrder
+          ? `Aviso, no es un error: ${chain.breaks.length} movimientos al final de la tabla traen un saldo impreso fuera de orden, y el saldo final sí cuadra`
+          : `${chain.breaks.length} de ${chain.checked} saldos por movimiento no cuadran (el primero en el movimiento ${chain.breaks[0]})`
         : `Los ${chain.checked} saldos por movimiento cuadran`,
     });
   }
@@ -200,6 +210,17 @@ export function validateStatement(s: BankStatement): ValidationReport {
     ...new Set(checks.filter((c) => c.blocking && !c.passed).map((c) => c.section)),
   ] as Section[];
   return { checks, passed: failedSections.length === 0, failedSections };
+}
+
+/**
+ * Banks sometimes print interest and tax near the end of the table with balances from earlier in the
+ * month. That is a printing order, not a misread, when the statement still reconciles and the breaks
+ * are a few rows in the last part of the table. A break anywhere else stays blocking.
+ */
+function breaksAreInTheTail(breaks: readonly number[], rows: number): boolean {
+  const first = breaks[0];
+  if (first === undefined || breaks.length > Math.max(2, Math.floor(rows * 0.05))) return false;
+  return first > rows * 0.8;
 }
 
 /**

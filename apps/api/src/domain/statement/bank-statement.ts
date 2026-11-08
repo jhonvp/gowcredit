@@ -18,6 +18,16 @@ export interface Transaction {
    * by an LLM tier (checked afterwards by the same validators).
    */
   sideBy: 'balance-delta' | 'column' | 'sign' | 'model';
+  /** A transfer between the holder's own pockets: kept and shown, but not income or spending. */
+  internal?: boolean;
+}
+
+/** An amount that changes the balance but is not printed as a movement (e.g. interest). */
+export interface OtherItem {
+  concept: string;
+  /** Signed: positive adds to the balance. */
+  amount: Cents;
+  description: string;
 }
 
 export interface StatementSummary {
@@ -33,7 +43,15 @@ export interface StatementSummary {
   /** Totals as printed by the bank (definitions vary by bank; informative). */
   reportedCredits: Cents | null;
   reportedDebits: Cents | null;
+  /** Amounts found in the summary, before deciding whether they count. */
+  printedExtras?: OtherItem[];
+  /** The printed extras that explain the reconciliation (see adjustStatement). */
+  otherItems?: OtherItem[];
 }
+
+/** Why a summary-only amount is listed apart; shown to people next to the amount. */
+export const SUMMARY_ITEM_DESCRIPTION =
+  'Importe que el banco imprime en el resumen y no como movimiento. Forma parte del saldo final, pero no se cuenta como abono ni cargo.';
 
 export interface BankStatement {
   summary: StatementSummary;
@@ -50,6 +68,9 @@ export const isSummaryRow = (t: Transaction): boolean =>
   t.description.startsWith(SUMMARY_ROW_PREFIX);
 
 export const totalCredits = (s: BankStatement): Cents =>
-  s.transactions.reduce((a, t) => a + t.credit, 0);
+  s.transactions.reduce((a, t) => a + (t.internal ? 0 : t.credit), 0);
 export const totalDebits = (s: BankStatement): Cents =>
-  s.transactions.reduce((a, t) => a + t.debit, 0);
+  s.transactions.reduce((a, t) => a + (t.internal ? 0 : t.debit), 0);
+
+export const otherItemsTotal = (summary: Pick<StatementSummary, 'otherItems'>): Cents =>
+  (summary.otherItems ?? []).reduce((a, i) => a + i.amount, 0);

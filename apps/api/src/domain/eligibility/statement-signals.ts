@@ -50,6 +50,7 @@ export function statementSignals(s: BankStatement): StatementSignals {
   let running = opening;
   let minBalance = opening;
   for (const t of s.transactions) {
+    if (t.internal) continue;
     running = t.balance ?? running + t.credit - t.debit;
     eod.set(t.date, running);
     minBalance = Math.min(minBalance, running);
@@ -66,7 +67,7 @@ export function statementSignals(s: BankStatement): StatementSignals {
 
   const byPayer = new Map<string, Cents>();
   for (const t of s.transactions)
-    if (t.credit > 0)
+    if (t.credit > 0 && !t.internal)
       byPayer.set(payerKey(t.description), (byPayer.get(payerKey(t.description)) ?? 0) + t.credit);
   const top = Math.max(0, ...byPayer.values());
 
@@ -76,7 +77,7 @@ export function statementSignals(s: BankStatement): StatementSignals {
     avgMonthlyCredits: Math.round(credits / months),
     avgMonthlyDebits: Math.round(debits / months),
     avgDailyBalance: Math.round(weighted / periodDays),
-    bouncedEntries: s.transactions.filter((t) => BOUNCED.test(t.description)).length,
+    bouncedEntries: s.transactions.filter((t) => !t.internal && BOUNCED.test(t.description)).length,
     topPayerShare: credits > 0 ? top / credits : 0,
     creditDebitRatio: debits > 0 ? credits / debits : null,
     minBalance,

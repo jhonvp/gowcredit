@@ -45,6 +45,11 @@ const SPECS = {
     labels: ['retiros / cargos', 'total importe cargos', 'retiros', 'cargos', 'salidas', 'gastos'],
     exclude: /objetad|promedio|comision/,
   },
+  /** Only counts if it explains the reconciliation (adjustStatement). */
+  interest: {
+    labels: ['dinero generado este mes', 'rendimientos del periodo', 'intereses ganados'],
+    exclude: /tasa|anual|gat/,
+  },
 } satisfies Record<string, LabelSpec>;
 
 export type SummaryField = keyof typeof SPECS;

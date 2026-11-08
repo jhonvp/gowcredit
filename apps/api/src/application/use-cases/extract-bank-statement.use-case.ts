@@ -1,3 +1,4 @@
+import { adjustStatement } from '../../domain/statement/adjustments';
 import type { BankStatement, Tier } from '../../domain/statement/bank-statement';
 import {
   type RepairFlags,
@@ -87,7 +88,8 @@ export class ExtractBankStatementUseCase {
         movedRows: out.reorderedRows ?? 0,
         summaryRows: summaryRowCount(out.statement.transactions),
       };
-      const validation = validate(out.statement, flags);
+      const statement = adjustStatement(out.statement);
+      const validation = validate(statement, flags);
       const attempt: TierAttempt = {
         tier: tier.tier,
         passed: validation.passed,
@@ -105,7 +107,7 @@ export class ExtractBankStatementUseCase {
         durationMs: attempt.durationMs,
         costUsd,
       });
-      best = pickBest(best, { statement: out.statement, validation, tier: tier.tier, flags });
+      best = pickBest(best, { statement, validation, tier: tier.tier, flags });
       if (best.validation.passed) break;
     }
 
@@ -145,14 +147,14 @@ const validate = (s: BankStatement, flags: RepairFlags): ValidationReport =>
 function pickBest(best: Candidate | null, next: Candidate): Candidate {
   if (!best) return next;
   const mix = (summaryFrom: Candidate, rowsFrom: Candidate): Candidate => {
-    const statement: BankStatement = {
+    const statement: BankStatement = adjustStatement({
       summary: summaryFrom.statement.summary,
       transactions: rowsFrom.statement.transactions,
       provenance: {
         summary: summaryFrom.statement.provenance.summary,
         transactions: rowsFrom.statement.provenance.transactions,
       },
-    };
+    });
     const { flags } = rowsFrom;
     return { statement, validation: validate(statement, flags), tier: next.tier, flags };
   };
