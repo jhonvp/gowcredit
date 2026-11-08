@@ -23,11 +23,15 @@ export class AppConfig {
   get dbLogging(): boolean {
     return this.config.get('DB_LOGGING', { infer: true });
   }
-  get auth(): { jwtSecret: string; jwtTtlSeconds: number } {
+  get auth(): { jwtSecret: string; jwtTtlSeconds: number; loginAttemptsPerMinute: number } {
     return {
       jwtSecret: this.config.get('JWT_SECRET', { infer: true }),
       jwtTtlSeconds: this.config.get('JWT_TTL_SECONDS', { infer: true }),
+      loginAttemptsPerMinute: this.config.get('LOGIN_ATTEMPTS_PER_MINUTE', { infer: true }),
     };
+  }
+  get trustProxyHops(): number {
+    return this.config.get('TRUST_PROXY_HOPS', { infer: true });
   }
   get documents(): {
     bucket: string;
@@ -42,11 +46,12 @@ export class AppConfig {
       visibilityTimeout: this.config.get('SQS_VISIBILITY_TIMEOUT', { infer: true }),
     };
   }
-  get mail(): { smtpUrl: string; from: string; webBaseUrl: string } {
+  get mail(): { smtpUrl: string; from: string; webBaseUrl: string; ownerLinkSharing: boolean } {
     return {
       smtpUrl: this.config.get('SMTP_URL', { infer: true }),
       from: this.config.get('MAIL_FROM', { infer: true }),
       webBaseUrl: this.config.get('WEB_BASE_URL', { infer: true }),
+      ownerLinkSharing: this.config.get('OWNER_LINK_SHARING', { infer: true }),
     };
   }
   get eligibility(): { asOf: string | null; satStatusMode: 'active' | 'unknown' } {

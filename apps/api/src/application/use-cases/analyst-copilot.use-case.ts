@@ -158,6 +158,12 @@ export class AnalystCopilotUseCase {
   }
 }
 
+const OUTCOME_ES = {
+  QUALIFIES: 'Califica',
+  DOES_NOT_QUALIFY: 'No califica',
+  NEEDS_INFO: 'Falta información',
+} as const;
+
 /** Deterministic explanation from the decision trace and provenance. */
 export function traceSummary(c: CaseRecord): Omit<CopilotAnswer, 'turns' | 'costUsd'> {
   const d = c.decision;
@@ -165,14 +171,14 @@ export function traceSummary(c: CaseRecord): Omit<CopilotAnswer, 'turns' | 'cost
   const failed = d.rules.filter((r) => !r.passed && r.kind !== 'score');
   const scores = d.rules.filter((r) => r.kind === 'score' && r.id !== 'SCORE');
   const lines = [
-    `Resultado: ${d.outcome}${d.score !== null ? ` con puntaje ${d.score}/100` : ''} (política ${d.policyVersion}, asOf ${d.asOf}).`,
+    `Resultado: ${OUTCOME_ES[d.outcome]}${d.score !== null ? ` con puntaje ${d.score}/100` : ''} (política ${d.policyVersion}, fecha de evaluación ${d.asOf}).`,
     failed.length
       ? `Reglas no cumplidas: ${failed.map((r) => `${r.id} (${r.detail})`).join('; ')}.`
       : 'Todas las reglas de integridad y de exclusión se cumplen.',
     scores.length
       ? `Puntaje: ${scores.map((r) => `${r.id} ${r.points}/${r.maxPoints}`).join(', ')}.`
       : '',
-    d.missing.length ? `Falta: ${d.missing.map((m) => m.code).join(', ')}.` : '',
+    d.missing.length ? `Falta: ${d.missing.map((m) => m.detail).join('; ')}.` : '',
     ...c.extractions.map((e) =>
       e.statement
         ? `Estado de cuenta: resumen por ${e.statement.provenance.summary}, movimientos por ${e.statement.provenance.transactions}.`

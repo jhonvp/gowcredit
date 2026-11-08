@@ -1,3 +1,4 @@
+import { ownerLink } from '../clarification/owner-link';
 import type { Decision } from '../../domain/eligibility/engine';
 import type { CaseRepositoryPort } from '../ports/case-repository.port';
 import type {
@@ -55,8 +56,8 @@ export class RequestClarificationUseCase {
     const rounds = await this.requests.countOwnerRounds(caseId);
     if (!c.ownerEmail || rounds >= MAX_OWNER_ROUNDS) {
       const reason = !c.ownerEmail
-        ? 'no owner email on the case'
-        : `owner already asked ${rounds} times`;
+        ? 'La solicitud no tiene correo del dueño'
+        : `Ya se preguntó ${rounds} veces al dueño`;
       this.logger.info('clarification escalated to analyst', { caseId, reason });
       return this.requests.create({
         caseId,
@@ -87,7 +88,7 @@ export class RequestClarificationUseCase {
       tokenHash: hash,
     });
 
-    const link = `${this.webBaseUrl.replace(/\/$/, '')}/owner/${token}`;
+    const link = ownerLink(this.webBaseUrl, token);
     const list = questions.map((q, i) => `${i + 1}. ${q.text}`);
     await this.mailer.send({
       to: c.ownerEmail,

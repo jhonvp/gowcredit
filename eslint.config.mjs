@@ -2,6 +2,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 /**
  * Hexagonal boundaries for apps/api (ADR 0001):
@@ -78,6 +79,11 @@ export default tseslint.config(
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser } },
     rules: restrict(['**/apps/api/**'], 'web consumes @gowcredit/contracts, never api sources'),
+  },
+  {
+    // Rules of Hooks + exhaustive deps: stale closures and missing effect cleanup are lint errors.
+    files: ['apps/web/**/*.{ts,tsx}'],
+    ...reactHooks.configs.flat['recommended-latest'],
   },
   {
     files: [

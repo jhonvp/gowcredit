@@ -52,26 +52,28 @@ export function applyAnswers(facts: DecisionFacts, answers: readonly Answer[]): 
     switch (a.code) {
       case 'INVOICE_DUE_DATE':
         if (a.kind !== 'date' || !isIsoDate(a.value))
-          throw new InvalidAnswerError('INVOICE_DUE_DATE needs a date (YYYY-MM-DD)');
+          throw new InvalidAnswerError('Indique la fecha de vencimiento (AAAA-MM-DD)');
         next.invoiceDueDate = a.value;
         break;
       case 'RFC_CONFIRMATION':
-        if (a.kind !== 'boolean') throw new InvalidAnswerError('RFC_CONFIRMATION needs yes or no');
+        if (a.kind !== 'boolean')
+          throw new InvalidAnswerError('Responda sí o no sobre el RFC del emisor');
         next.issuerRfcConfirmed = a.value;
         break;
       case 'SAT_STATUS':
-        if (a.kind !== 'boolean') throw new InvalidAnswerError('SAT_STATUS needs yes or no');
+        if (a.kind !== 'boolean')
+          throw new InvalidAnswerError('Responda sí o no sobre el estado de la factura en el SAT');
         next.satStatus = a.value ? 'active' : 'cancelled';
         break;
       case 'STATEMENT_UNREADABLE':
       case 'INVOICE_INCONSISTENT':
         if (a.kind !== 'text' || !a.text.trim())
-          throw new InvalidAnswerError(`${a.code} needs an explanation`);
+          throw new InvalidAnswerError('Escriba una explicación');
         forAnalyst.push({ code: a.code, text: a.text.trim().slice(0, 2000) });
         break;
       case 'RECENT_STATEMENT':
       case 'SUPPLIER_STATEMENT':
-        throw new InvalidAnswerError(`${a.code} is answered by uploading a document`);
+        throw new InvalidAnswerError('Esta pregunta se responde subiendo un documento');
     }
   }
   return { facts: next, forAnalyst };

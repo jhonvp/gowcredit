@@ -1,6 +1,7 @@
 import type { Me } from '@gowcredit/contracts';
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router';
+import { onSessionExpired } from './api';
 
 interface Session {
   token: string;
@@ -8,6 +9,8 @@ interface Session {
 }
 interface AuthState {
   session: Session | null;
+  /** The API rejected the token: the login page says why the user is back there. */
+  expired: boolean;
   signIn: (s: Session) => void;
   signOut: () => void;
 }
@@ -24,11 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const raw = sessionStorage.getItem(KEY);
     return raw ? (JSON.parse(raw) as Session) : null;
   });
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    onSessionExpired(() => {
+      sessionStorage.removeItem(KEY);
+      setSession(null);
+      setExpired(true);
+    });
+  }, []);
+
   const value = useMemo<AuthState>(
     () => ({
       session,
+      expired,
       signIn: (s) => {
         sessionStorage.setItem(KEY, JSON.stringify(s));
+        setExpired(false);
         setSession(s);
       },
       signOut: () => {
@@ -36,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
       },
     }),
-    [session],
+    [session, expired],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

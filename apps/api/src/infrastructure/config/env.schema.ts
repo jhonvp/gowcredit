@@ -26,6 +26,13 @@ export const envSchema = z.object({
     .int()
     .positive()
     .default(8 * 3600),
+  /** Login attempts per minute for one email; one IP gets 5x this (spraying many emails). */
+  LOGIN_ATTEMPTS_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  /**
+   * Proxies in front of the API whose X-Forwarded-For is trusted, so req.ip is the client (rate limits).
+   * 0 locally; 2 in AWS (CloudFront, then the ALB).
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   // Documents and the extraction queue (ADR 0006). Floci locally, Terraform-managed in AWS.
   S3_BUCKET: z.string().default('gowcredit-local-documents'),
   SQS_QUEUE_NAME: z.string().default('gowcredit-local-extract'),
@@ -40,6 +47,14 @@ export const envSchema = z.object({
   SMTP_URL: z.string().default('smtp://mailpit:1025'),
   MAIL_FROM: z.string().default('GowCredit <no-reply@gowcredit.local>'),
   WEB_BASE_URL: z.string().url().default('http://localhost:5173'),
+  /**
+   * Lets analysts generate a fresh owner link in the UI (local demos, or sharing it by phone). Off by
+   * default: in production the emailed link is the only one, and only its hash is stored.
+   */
+  OWNER_LINK_SHARING: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   // Eligibility (ADR 0007). Fixed evaluation date for reproducible runs; default is today.
   ELIGIBILITY_AS_OF: z
     .string()

@@ -11,6 +11,7 @@ import type {
 import type { BankStatement } from '../../../domain/statement/bank-statement';
 import { isIsoDate } from '../../../domain/shared/iso-date';
 import { toCents } from '../../../domain/shared/money';
+import { reorderedRows } from '../../../domain/validation/repair-flags';
 import { validateStatement } from '../../../domain/validation/statement-validators';
 import { renderPage, repairedPages } from './page-render';
 import { T4_PURPOSE, T4_SYSTEM, t4Prompt } from './prompts';
@@ -232,8 +233,12 @@ export class T4RepairAgentExtractor implements StatementExtractorPort {
       throw e;
     }
 
+    // Reordering rows is detected here (only T4 edits a previous candidate); summary-only rows are
+    // detected for every tier in the use case. Both make the result go to human review.
+    const moved = reorderedRows(previous.statement.transactions, work.transactions);
     return {
       statement: work,
+      reorderedRows: moved,
       diagnostics: {
         purpose: T4_PURPOSE,
         stop: result.stop,
@@ -241,6 +246,7 @@ export class T4RepairAgentExtractor implements StatementExtractorPort {
         toolCalls: result.toolCalls.length,
         toolErrors: result.toolCalls.filter((c) => c.isError).length,
         edits,
+        reorderedRows: moved,
         replayed: result.replayed,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,

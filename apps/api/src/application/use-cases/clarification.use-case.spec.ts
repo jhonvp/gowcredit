@@ -14,6 +14,7 @@ import {
 } from './answer-clarification.use-case';
 import type { DecideCaseUseCase } from './decide-case.use-case';
 import { MAX_OWNER_ROUNDS, RequestClarificationUseCase } from './request-clarification.use-case';
+import { ShareOwnerLinkUseCase } from './share-owner-link.use-case';
 
 const logger: LoggerPort = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
 const clock = { now: () => new Date('2025-04-05T12:00:00Z') };
@@ -58,6 +59,11 @@ class FakeRequests implements ClarificationRepositoryPort {
   async markSuperseded(id: string) {
     const r = this.rows.find((x) => x.id === id);
     if (r) Object.assign(r, { status: 'superseded', tokenHash: null });
+  }
+  async rotateToken(id: string, tokenHash: string, expiresAt: Date) {
+    const r = this.rows.find((x) => x.id === id && x.status === 'open');
+    if (r) Object.assign(r, { tokenHash, expiresAt });
+    return !!r;
   }
 }
 
@@ -120,7 +126,7 @@ describe('RequestClarificationUseCase', () => {
     expect(r?.expiresAt?.toISOString()).toBe('2025-04-12T12:00:00.000Z');
     expect(sent).toHaveLength(1);
     expect(sent[0]?.to).toBe('owner@demo.mx');
-    expect(sent[0]?.text).toContain('http://localhost:5173/owner/tok1');
+    expect(sent[0]?.text).toContain('http://localhost:5173/owner#tok1');
     expect(sent[0]?.text).toContain('fecha de vencimiento');
   });
 
@@ -206,5 +212,34 @@ describe('AnswerClarificationUseCase', () => {
     await expect(answer.execute(r!.id, [{ code: 'SAT_STATUS', value: true }])).rejects.toThrow(
       /not asked/,
     );
+  });
+});
+
+describe('ShareOwnerLinkUseCase', () => {
+  const fresh = {
+    generate: () => ({ token: 'fresh', hash: 'hash-fresh' }),
+    hash: (t: string) => t,
+  };
+
+  it('replaces the emailed link with a fresh one, returned once', async () => {
+    const { ask, requests } = setup();
+    await ask.execute('c1', needs('INVOICE_DUE_DATE'));
+    const share = new ShareOwnerLinkUseCase(
+      requests,
+      fresh,
+      clock,
+      logger,
+      'http://localhost:5173/',
+    );
+    const out = await share.execute('c1', { userId: 'a1' });
+    expect(out).toMatchObject({ link: 'http://localhost:5173/owner#fresh', round: 1 });
+    expect(await requests.findOpenByTokenHash('hash1')).toBeNull(); // the emailed link
+    expect(await requests.findOpenByTokenHash('hash-fresh')).not.toBeNull();
+  });
+
+  it('returns null when the case has no open owner request', async () => {
+    const { requests } = setup();
+    const share = new ShareOwnerLinkUseCase(requests, fresh, clock, logger, 'http://x');
+    expect(await share.execute('c1', { userId: 'a1' })).toBeNull();
   });
 });
